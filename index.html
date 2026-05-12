@@ -2,1069 +2,1080 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Space-Synth Capture</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Capture Protocol Reference v0.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #0a0a0c;
-    --bg-1: #111114;
-    --surface: rgba(20, 20, 24, 0.72);
-    --surface-solid: #14141a;
+    --surface: #14141a;
+    --surface-2: #1c1c24;
     --ink: #ffffff;
-    --ink-2: rgba(255, 255, 255, 0.7);
-    --ink-3: rgba(255, 255, 255, 0.45);
-    --ink-4: rgba(255, 255, 255, 0.18);
+    --ink-2: rgba(255, 255, 255, 0.72);
+    --ink-3: rgba(255, 255, 255, 0.48);
+    --ink-4: rgba(255, 255, 255, 0.22);
     --border: rgba(255, 255, 255, 0.08);
-    --border-2: rgba(255, 255, 255, 0.14);
+    --border-2: rgba(255, 255, 255, 0.16);
     --accent: #4dd4ff;
     --accent-dim: rgba(77, 212, 255, 0.4);
     --amber: #ffb347;
-    --red: #ff5266;
     --green: #4ade80;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body {
-    height: 100%; overflow: hidden;
-    background: var(--bg);
-    color: var(--ink);
+    background: var(--bg); color: var(--ink);
     font-family: 'Manrope', -apple-system, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
+    line-height: 1.5;
+  }
+  body {
+    background-image:
+      radial-gradient(ellipse at 50% 0%, rgba(77, 212, 255, 0.04), transparent 60%);
+    min-height: 100vh;
+    padding: 20px 16px;
+    padding-top: max(20px, env(safe-area-inset-top));
+    padding-bottom: max(40px, env(safe-area-inset-bottom));
   }
   .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
-  /* Camera as base layer */
-  .cam-wrap { position: fixed; inset: 0; z-index: 0; background: #000; }
-  #video {
-    width: 100%; height: 100%; object-fit: cover;
-  }
-  .cam-vignette {
-    position: fixed; inset: 0; z-index: 1; pointer-events: none;
-    background:
-      linear-gradient(180deg, rgba(0,0,0,0.45) 0%, transparent 18%, transparent 72%, rgba(0,0,0,0.55) 100%);
-  }
-  .cam-placeholder {
-    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-    background: var(--bg);
-    color: var(--ink-3);
-    font-family: 'JetBrains Mono', monospace; font-size: 11px;
-    letter-spacing: 0.15em; padding: 24px; text-align: center;
-  }
-  #analysis { display: none; }
+  .container { max-width: 720px; margin: 0 auto; }
 
-  /* Full-screen content surfaces (select, instruction, complete) */
-  .screen {
-    position: fixed; inset: 0; z-index: 10;
-    display: flex; flex-direction: column;
-    padding: 28px 24px;
-    padding-top: max(28px, env(safe-area-inset-top));
-    padding-bottom: max(28px, env(safe-area-inset-bottom));
-    background: var(--bg);
-    overflow-y: auto;
-  }
-  .screen.hidden { display: none; }
-  .screen-bg {
-    position: absolute; inset: 0; z-index: -1; pointer-events: none;
-    background:
-      radial-gradient(ellipse at 50% 0%, rgba(77, 212, 255, 0.08), transparent 50%),
-      radial-gradient(ellipse at 100% 100%, rgba(77, 212, 255, 0.04), transparent 50%);
-  }
-
-  /* Typography */
+  header { margin-bottom: 24px; }
   .eyebrow {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; font-weight: 500;
-    letter-spacing: 0.18em; text-transform: uppercase;
+    font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
     color: var(--accent);
-    margin-bottom: 12px;
-  }
-  h1.display {
-    font-family: 'Manrope', sans-serif;
-    font-size: 34px; font-weight: 800;
-    line-height: 1.05; letter-spacing: -0.025em;
-    color: var(--ink);
     margin-bottom: 8px;
   }
-  .lede {
-    font-size: 15px; line-height: 1.5;
-    color: var(--ink-2);
-    margin-bottom: 32px;
-  }
-
-  /* Buttons */
-  .btn {
-    display: flex; align-items: center; justify-content: center;
-    width: 100%; padding: 16px 24px;
-    border-radius: 14px;
-    border: none;
-    font-family: 'Manrope', sans-serif;
-    font-size: 15px; font-weight: 600;
-    letter-spacing: -0.005em;
-    cursor: pointer;
-    transition: transform 0.12s, background 0.15s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .btn-primary {
-    background: var(--ink);
-    color: var(--bg);
-    box-shadow: 0 0 0 1px var(--border-2), 0 12px 32px rgba(77, 212, 255, 0.15);
-  }
-  .btn-primary:active { transform: scale(0.985); background: var(--ink-2); }
-  .btn-ghost {
-    background: transparent;
-    color: var(--ink-2);
-    border: 1px solid var(--border-2);
-  }
-  .btn-ghost:active { background: rgba(255,255,255,0.05); }
-  .btn + .btn { margin-top: 10px; }
-
-  /* Protocol cards */
-  .card-list {
-    display: flex; flex-direction: column; gap: 10px;
-    margin-top: 8px;
-  }
-  .card {
-    background: var(--surface-solid);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 18px;
-    cursor: pointer;
-    transition: border-color 0.15s, transform 0.12s;
-  }
-  .card:active { transform: scale(0.99); border-color: var(--accent-dim); }
-  .card-head {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 8px;
-  }
-  .card-title {
-    font-size: 17px; font-weight: 700; color: var(--ink);
-    letter-spacing: -0.01em;
-  }
-  .card-tag {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; font-weight: 500;
-    color: var(--accent);
-    letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 4px 8px;
-    background: rgba(77, 212, 255, 0.1);
-    border-radius: 6px;
-  }
-  .card-desc {
-    font-size: 13.5px; line-height: 1.5; color: var(--ink-2);
+  h1 {
+    font-size: 28px; font-weight: 800;
+    letter-spacing: -0.02em; line-height: 1.1;
     margin-bottom: 10px;
   }
-  .card-spec {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: var(--ink-3);
-    letter-spacing: 0.02em;
-  }
-
-  .err {
-    color: var(--red);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; margin-top: 16px;
-    line-height: 1.5;
-  }
-
-  /* Instruction screen */
-  .ins-content {
-    display: flex; flex-direction: column; flex: 1; justify-content: center;
-    max-width: 440px; margin: 0 auto; width: 100%;
-  }
-  .ins-actions {
-    margin-top: 28px;
-  }
-  .station-chip {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: var(--surface-solid);
-    border: 1px solid var(--border);
-    padding: 6px 12px;
-    border-radius: 999px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; font-weight: 500;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 20px;
-    align-self: flex-start;
-  }
-  .station-chip::before {
-    content: ''; width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent); box-shadow: 0 0 8px var(--accent);
-  }
-  .ins-fan-spec {
-    display: inline-block;
-    background: var(--surface-solid);
-    border: 1px solid var(--border);
-    color: var(--ink-2);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px; font-weight: 500;
-    padding: 8px 14px;
-    border-radius: 10px;
+  .lede {
+    font-size: 14px; color: var(--ink-2);
     margin-bottom: 8px;
   }
-
-  /* HUD (capture overlay) */
-  .hud {
-    position: fixed; inset: 0; z-index: 5; pointer-events: none;
-    display: flex; flex-direction: column; justify-content: space-between;
-    padding: 14px 16px;
-    padding-top: max(14px, env(safe-area-inset-top));
-    padding-bottom: max(20px, env(safe-area-inset-bottom));
-  }
-  .hud.hidden { display: none; }
-  .hud > * { pointer-events: auto; }
-
-  /* Top status pill */
-  .top-row {
-    display: flex; align-items: flex-start; gap: 10px;
-    width: 100%;
-  }
-  .pill {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 8px 14px;
+  .build-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--ink-4);
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
     background: var(--surface);
-    -webkit-backdrop-filter: blur(20px) saturate(140%);
-    backdrop-filter: blur(20px) saturate(140%);
     border: 1px solid var(--border);
-    border-radius: 999px;
-    font-size: 12.5px; font-weight: 600;
-    color: var(--ink);
-    letter-spacing: -0.005em;
+    border-radius: 4px;
+    margin-top: 4px;
   }
-  .pill .dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 10px var(--accent);
-    animation: pulse 1.8s ease-in-out infinite;
+
+  /* Tab switcher */
+  .tabs {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+    margin-bottom: 24px;
   }
-  @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.45 } }
-  .pill .count {
+  @media (min-width: 560px) {
+    .tabs { grid-template-columns: repeat(4, 1fr); }
+  }
+  .tab {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--ink-2);
+    padding: 12px 8px;
+    border-radius: 12px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .tab:active { transform: scale(0.98); }
+  .tab.active {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .tab .tab-sub {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    margin-top: 4px;
+    color: var(--ink-3);
+    letter-spacing: 0.06em;
+  }
+  .tab.active .tab-sub { color: rgba(0,0,0,0.55); }
+
+  /* Panel */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .protocol-title {
+    font-size: 22px; font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .protocol-desc {
+    font-size: 14px; color: var(--ink-2);
+    margin-bottom: 16px;
+  }
+
+  /* Diagram */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .diagram-svg {
+    width: 100%; height: auto;
+    display: block;
+    background: #08080a;
+    border-radius: 10px;
+  }
+  .diagram-caption {
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px; color: var(--ink-3);
-    font-weight: 500;
-    margin-left: 4px;
+    letter-spacing: 0.05em;
+    margin-top: 10px;
+    text-align: center;
   }
 
-  .stats-strip {
-    margin-left: auto;
-    display: inline-flex; align-items: center; gap: 12px;
-    padding: 8px 12px;
+  /* Legend */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 10px 16px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--ink-3);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  /* Key principles */
+  .key-box {
+    background: rgba(77, 212, 255, 0.06);
+    border: 1px solid rgba(77, 212, 255, 0.2);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+  }
+  .key-box-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .key-box p {
+    font-size: 13.5px; color: var(--ink);
+    line-height: 1.55;
+  }
+
+  /* Steps */
+  .steps-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 12px;
+  }
+  .steps { list-style: none; padding: 0; }
+  .step {
+    display: flex; gap: 14px;
+    padding: 14px;
     background: var(--surface);
-    -webkit-backdrop-filter: blur(20px) saturate(140%);
-    backdrop-filter: blur(20px) saturate(140%);
     border: 1px solid var(--border);
     border-radius: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .step:active { background: var(--surface-2); }
+  .step.highlighted {
+    border-color: var(--accent);
+    background: rgba(77, 212, 255, 0.06);
+  }
+  .step-num {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px; font-weight: 500;
-    color: var(--ink-3);
-  }
-  .stat-item { display: flex; align-items: center; gap: 4px; }
-  .stat-item .label { font-size: 9.5px; color: var(--ink-4); letter-spacing: 0.05em; }
-  .stat-item .value { color: var(--ink-2); }
-  .stat-item .value.ok { color: var(--green); }
-  .stat-item .value.warn { color: var(--amber); }
-  .stat-item .value.bad { color: var(--red); }
-
-  /* Bottom guidance area */
-  .bottom-stack {
-    display: flex; flex-direction: column;
-    width: 100%;
-    gap: 14px;
-  }
-
-  /* Curved fan arc indicator */
-  .fan-viz {
-    width: 100%;
-    display: flex; flex-direction: column; align-items: center;
-    pointer-events: none;
-  }
-  .fan-svg {
-    width: 100%; height: 76px;
-    max-width: 480px;
-    overflow: visible;
-  }
-
-  /* Walk-around progress bar */
-  .walk-viz {
-    width: 100%;
-    display: flex; flex-direction: column; align-items: center;
-    pointer-events: none;
-  }
-  .walk-bar-track {
-    width: 100%; max-width: 480px;
-    height: 8px; border-radius: 999px;
-    background: rgba(255,255,255,0.08);
-    overflow: hidden;
-    position: relative;
-  }
-  .walk-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), #7eecff);
-    border-radius: 999px;
-    width: 0%;
-    transition: width 0.18s;
-    box-shadow: 0 0 16px var(--accent-dim);
-  }
-  .walk-step-row {
-    display: flex; gap: 4px; margin-top: 10px;
-  }
-  .step-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: rgba(255,255,255,0.12);
-    transition: background 0.15s;
-  }
-  .step-dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent-dim); }
-
-  /* Status text */
-  .guidance {
-    text-align: center;
-    width: 100%; max-width: 440px; margin: 0 auto;
-  }
-  .guidance-msg {
-    font-family: 'Manrope', sans-serif;
-    font-size: 17px; font-weight: 700;
-    color: var(--ink);
-    letter-spacing: -0.01em;
-    line-height: 1.25;
-  }
-  .guidance-sub {
-    margin-top: 4px;
-    font-size: 13px; font-weight: 500;
-    color: var(--ink-3);
-  }
-  .guidance.warn .guidance-msg { color: var(--amber); }
-  .guidance.bad .guidance-msg { color: var(--red); }
-  .guidance.ok .guidance-msg { color: var(--green); }
-
-  .action-row {
-    width: 100%; max-width: 440px; margin: 0 auto;
-    display: flex; gap: 10px;
-  }
-  .action-row .btn { padding: 14px 24px; }
-
-  /* Complete screen */
-  .check-wrap {
-    width: 72px; height: 72px; margin: 0 auto 16px;
+    font-size: 12px; font-weight: 700;
+    color: var(--bg);
+    background: var(--accent);
+    width: 28px; height: 28px;
     border-radius: 50%;
-    background: rgba(74, 222, 128, 0.12);
     display: flex; align-items: center; justify-content: center;
-    border: 1px solid rgba(74, 222, 128, 0.3);
+    flex-shrink: 0;
   }
-  .check-wrap svg { width: 36px; height: 36px; stroke: var(--green); stroke-width: 2.5; fill: none; }
-  .summary-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-    max-width: 440px; margin: 28px auto 0;
+  .step-body { flex: 1; }
+  .step-title {
+    font-size: 14px; font-weight: 700;
+    margin-bottom: 4px;
   }
-  .stat-card {
-    background: var(--surface-solid);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px;
+  .step-desc {
+    font-size: 13px; color: var(--ink-2);
+    line-height: 1.5;
   }
-  .stat-card-val {
+  .step-meta {
+    display: inline-block;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 26px; font-weight: 700;
-    color: var(--ink);
-    line-height: 1; letter-spacing: -0.02em;
-  }
-  .stat-card-lbl {
-    font-size: 11.5px; color: var(--ink-3); font-weight: 500;
-    margin-top: 8px; letter-spacing: 0;
+    font-size: 10px; color: var(--accent);
+    letter-spacing: 0.05em;
+    margin-top: 6px;
+    padding: 2px 6px;
+    background: rgba(77, 212, 255, 0.1);
+    border-radius: 4px;
   }
 
-  .hidden { display: none !important; }
-
-  @media (max-height: 700px) {
-    h1.display { font-size: 28px; }
-    .lede { font-size: 14px; margin-bottom: 24px; }
-    .card { padding: 14px; }
-    .card-title { font-size: 16px; }
-    .fan-svg { height: 64px; }
+  /* Tips */
+  .tips {
+    margin-top: 24px;
+    padding: 14px;
+    background: rgba(255, 179, 71, 0.06);
+    border: 1px solid rgba(255, 179, 71, 0.2);
+    border-left: 3px solid var(--amber);
+    border-radius: 10px;
   }
+  .tips-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 8px;
+  }
+  .tips ul { list-style: none; padding: 0; }
+  .tips li {
+    font-size: 13px; color: var(--ink-2);
+    line-height: 1.5;
+    padding-left: 16px;
+    position: relative;
+    margin-bottom: 6px;
+  }
+  .tips li::before {
+    content: '·'; position: absolute; left: 6px;
+    color: var(--amber); font-weight: 700;
+  }
+
+  /* SVG-specific */
+  .room-wall { stroke: rgba(255,255,255,0.55); stroke-width: 2.5; fill: rgba(255,255,255,0.025); }
+  .wall-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; fill: var(--ink-3);
+    letter-spacing: 0.1em;
+  }
+  .scale-bar { stroke: rgba(255,255,255,0.4); stroke-width: 1.5; }
+  .scale-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; fill: var(--ink-3);
+    letter-spacing: 0.05em;
+  }
+  .fan-wedge {
+    fill: rgba(77,212,255,0.16);
+    stroke: rgba(77,212,255,0.45);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+  }
+  .fan-wedge.highlighted {
+    fill: rgba(77,212,255,0.32);
+    stroke: var(--accent);
+    stroke-dasharray: none;
+    stroke-width: 1.8;
+  }
+  .sweep-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+  .station-circle {
+    fill: var(--accent);
+    stroke: var(--bg);
+    stroke-width: 2;
+    filter: drop-shadow(0 0 4px rgba(77, 212, 255, 0.5));
+  }
+  .station-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 700;
+    fill: var(--bg);
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+  .walk-path {
+    fill: none;
+    stroke: rgba(255,255,255,0.45);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 4;
+  }
+  .walk-arrow { fill: rgba(255,255,255,0.55); }
+  .furniture {
+    fill: rgba(255,255,255,0.05);
+    stroke: rgba(255,255,255,0.22);
+    stroke-width: 1.2;
+  }
+  .chair {
+    fill: rgba(255,255,255,0.04);
+    stroke: rgba(255,255,255,0.15);
+    stroke-width: 0.8;
+  }
+  .furniture-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    fill: rgba(255,255,255,0.32);
+    letter-spacing: 0.08em;
+  }
+
 </style>
 </head>
 <body>
 
-<div class="cam-wrap"><video id="video" autoplay playsinline muted></video></div>
-<div class="cam-vignette"></div>
-<canvas id="analysis" width="120" height="68"></canvas>
-
-<!-- ============ SELECT ============ -->
-<div class="screen" id="screen-select">
-  <div class="screen-bg"></div>
-  <div style="max-width:440px; margin:0 auto; width:100%; flex:1; display:flex; flex-direction:column;">
+<div class="container">
+  <header>
     <div class="eyebrow">HP · Spatial Reconstruction</div>
-    <h1 class="display">Capture a room</h1>
-    <p class="lede">Pick a protocol. Each gives different coverage trade-offs for the reconstruction pipeline.</p>
+    <h1>Capture Protocol Reference</h1>
+    <p class="lede">Industry-standard capture patterns for SfM + segmentation pipelines. All protocols assume conference-room furniture (central table, chairs around perimeter) — walking happens in the corridor between furniture and walls. Tap a station to see its details.</p>
+    <div class="build-tag">v0.2 · 2026-05-12 · furniture-aware</div>
+  </header>
 
-    <div class="card-list">
-      <div class="card" data-proto="continuous">
-        <div class="card-head">
-          <div class="card-title">Continuous walk</div>
-          <span class="card-tag">1 phase</span>
-        </div>
-        <div class="card-desc">Walk slowly around the perimeter, camera pointed toward the room center. One single capture pass.</div>
-        <div class="card-spec">~360° sweep · step-tracked</div>
-      </div>
-
-      <div class="card" data-proto="fourCorner">
-        <div class="card-head">
-          <div class="card-title">4-corner</div>
-          <span class="card-tag">4 × 90°</span>
-        </div>
-        <div class="card-desc">Stand in each corner facing the diagonal. Sweep a 90° fan to capture both visible walls.</div>
-        <div class="card-spec">4 stations · 90° fan each</div>
-      </div>
-
-      <div class="card" data-proto="eightStation">
-        <div class="card-head">
-          <div class="card-title">8-station hybrid</div>
-          <span class="card-tag">8 × mixed</span>
-        </div>
-        <div class="card-desc">Alternate corners and wall centers. Guided sequence: corner → wall to right → next corner → next wall.</div>
-        <div class="card-spec">8 stations · alternating 90°/180°</div>
-      </div>
-    </div>
-
-    <div class="err" id="select-err"></div>
-  </div>
-</div>
-
-<!-- ============ INSTRUCTION ============ -->
-<div class="screen hidden" id="screen-instruction">
-  <div class="screen-bg"></div>
-  <div class="ins-content">
-    <div class="station-chip" id="ic-chip">Station 1 of 4</div>
-    <h1 class="display" id="ic-label">Corner 1</h1>
-    <p class="lede" id="ic-instruction">...</p>
-    <div class="ins-fan-spec" id="ic-spec">90° fan · ±45°</div>
-
-    <div class="ins-actions">
-      <button class="btn btn-primary" id="ic-begin">Begin station</button>
-      <button class="btn btn-ghost" id="ic-skip">Skip this station</button>
-    </div>
-  </div>
-</div>
-
-<!-- ============ HUD: STATION ============ -->
-<div class="hud hidden" id="hud-station">
-  <div class="top-row">
-    <div class="pill">
-      <span class="dot"></span>
-      <span id="hud-st-label">Corner 1</span>
-      <span class="count" id="hud-st-count">1/4</span>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="label">OFF</span><span class="value mono" id="st-offset">0°</span></div>
-      <div class="stat-item"><span class="label">SHRP</span><span class="value mono" id="st-sharp">—</span></div>
-      <div class="stat-item"><span class="label">MOT</span><span class="value mono" id="st-motion">—</span></div>
-    </div>
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-panel="compact">Compact<span class="tab-sub">≤10m square</span></button>
+    <button class="tab" data-panel="long">Long & narrow<span class="tab-sub">10–25m hall</span></button>
+    <button class="tab" data-panel="irregular">Irregular<span class="tab-sub">L-shape</span></button>
+    <button class="tab" data-panel="open">Large open<span class="tab-sub">&gt;10m square</span></button>
   </div>
 
-  <div class="bottom-stack">
-    <div class="guidance" id="st-guidance">
-      <div class="guidance-msg" id="st-msg">Sweep the fan</div>
-      <div class="guidance-sub" id="st-sub">pan slowly left and right</div>
+  <!-- ================ COMPACT RECTANGULAR ================ -->
+  <div class="panel active" id="panel-compact">
+    <div class="protocol-title">4-Corner Protocol</div>
+    <p class="protocol-desc">Best for small to mid-sized rectangular rooms (≤10m on the long side). Each station sweeps 90° from one adjacent wall to the other. Walking between corners provides the translation baseline for SfM.</p>
+
+    <div class="key-box">
+      <div class="key-box-label">Key principle</div>
+      <p>Every wall is seen from at least two corners, giving SfM strong angular diversity and ~5m+ baseline between viewpoints — much better than typical photogrammetry overlap.</p>
     </div>
 
-    <div class="fan-viz">
-      <svg class="fan-svg" id="fan-svg" viewBox="-240 -30 480 90" preserveAspectRatio="xMidYMid meet">
-        <!-- baseline guide arc (drawn as a path) -->
-        <path id="fan-baseline" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2" stroke-linecap="round"/>
-        <!-- buckets -->
-        <g id="fan-buckets"></g>
-        <!-- start marker (center tick) -->
-        <line x1="0" y1="-4" x2="0" y2="6" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>
-        <!-- cursor -->
-        <g id="fan-cursor" transform="translate(0,0)">
-          <circle cx="0" cy="0" r="5" fill="#4dd4ff"/>
-          <circle cx="0" cy="0" r="9" fill="none" stroke="#4dd4ff" stroke-width="1.5" opacity="0.4"/>
+    <div class="diagram-wrap">
+      <svg class="diagram-svg" viewBox="-160 -160 320 320" id="svg-compact">
+        <!-- Grid scale: 1 SVG unit ≈ 5cm. Room is 240×240 SVG units = ~6m × 6m -->
+        <!-- Room walls -->
+        <rect class="room-wall" x="-120" y="-120" width="240" height="240"/>
+
+        <!-- Wall labels -->
+        <text class="wall-label" x="0" y="-128" text-anchor="middle">WALL A</text>
+        <text class="wall-label" x="128" y="4" text-anchor="start">B</text>
+        <text class="wall-label" x="0" y="142" text-anchor="middle">WALL C</text>
+        <text class="wall-label" x="-128" y="4" text-anchor="end">D</text>
+
+        <!-- Conference table (centered, ~2.5m × 1.5m) -->
+        <rect class="furniture" x="-50" y="-30" width="100" height="60" rx="4"/>
+        <text class="furniture-label" x="0" y="4" text-anchor="middle">TABLE</text>
+
+        <!-- Chairs around the table (8 total: 3 along each long side, 1 at each end) -->
+        <rect class="chair" x="-38" y="-44" width="14" height="10" rx="2"/>
+        <rect class="chair" x="-8" y="-44" width="14" height="10" rx="2"/>
+        <rect class="chair" x="22" y="-44" width="14" height="10" rx="2"/>
+        <rect class="chair" x="-38" y="34" width="14" height="10" rx="2"/>
+        <rect class="chair" x="-8" y="34" width="14" height="10" rx="2"/>
+        <rect class="chair" x="22" y="34" width="14" height="10" rx="2"/>
+        <rect class="chair" x="-66" y="-7" width="10" height="14" rx="2"/>
+        <rect class="chair" x="56" y="-7" width="10" height="14" rx="2"/>
+
+        <!-- Fan wedges at each corner (90° each, opening into the room) -->
+        <path class="fan-wedge" id="fan-1" d="M -120 -120 L -50 -120 A 70 70 0 0 1 -120 -50 Z"/>
+        <path class="fan-wedge" id="fan-2" d="M 120 -120 L 120 -50 A 70 70 0 0 1 50 -120 Z"/>
+        <path class="fan-wedge" id="fan-3" d="M 120 120 L 50 120 A 70 70 0 0 1 120 50 Z"/>
+        <path class="fan-wedge" id="fan-4" d="M -120 120 L -120 50 A 70 70 0 0 1 -50 120 Z"/>
+
+        <!-- Sweep direction arrows (small curved arrows inside fans) -->
+        <path class="sweep-arrow" d="M -90 -98 A 36 36 0 0 1 -98 -90"/>
+        <polygon fill="#4dd4ff" points="-92,-86 -101,-92 -102,-80"/>
+
+        <path class="sweep-arrow" d="M 98 -90 A 36 36 0 0 1 90 -98"/>
+        <polygon fill="#4dd4ff" points="86,-92 92,-101 80,-102"/>
+
+        <path class="sweep-arrow" d="M 90 98 A 36 36 0 0 1 98 90"/>
+        <polygon fill="#4dd4ff" points="92,86 101,92 102,80"/>
+
+        <path class="sweep-arrow" d="M -98 90 A 36 36 0 0 1 -90 98"/>
+        <polygon fill="#4dd4ff" points="-86,92 -92,101 -80,102"/>
+
+        <!-- Walking path: clockwise loop in the corridor between chairs and walls -->
+        <path class="walk-path" d="M -100 -100 L 100 -100 L 100 100 L -100 100 L -100 -100"/>
+        <polygon class="walk-arrow" points="0,-105 -6,-100 -6,-110"/>
+        <polygon class="walk-arrow" points="105,0 100,-6 110,-6"/>
+        <polygon class="walk-arrow" points="0,105 6,100 6,110"/>
+        <polygon class="walk-arrow" points="-105,0 -100,6 -110,6"/>
+
+        <!-- Station circles -->
+        <g data-station="1">
+          <circle class="station-circle" cx="-120" cy="-120" r="14"/>
+          <text class="station-num" x="-120" y="-120">1</text>
         </g>
+        <g data-station="2">
+          <circle class="station-circle" cx="120" cy="-120" r="14"/>
+          <text class="station-num" x="120" y="-120">2</text>
+        </g>
+        <g data-station="3">
+          <circle class="station-circle" cx="120" cy="120" r="14"/>
+          <text class="station-num" x="120" y="120">3</text>
+        </g>
+        <g data-station="4">
+          <circle class="station-circle" cx="-120" cy="120" r="14"/>
+          <text class="station-num" x="-120" y="120">4</text>
+        </g>
+
+        <!-- Scale bar -->
+        <line class="scale-bar" x1="-120" y1="148" x2="-80" y2="148"/>
+        <line class="scale-bar" x1="-120" y1="144" x2="-120" y2="152"/>
+        <line class="scale-bar" x1="-80" y1="144" x2="-80" y2="152"/>
+        <text class="scale-label" x="-100" y="160" text-anchor="middle">1m</text>
       </svg>
+      <div class="diagram-caption">~5–6m huddle room · clockwise perimeter walk · corners accessible</div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:#4dd4ff"></div>Capture station</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(77,212,255,0.32); border:1px dashed rgba(77,212,255,0.6)"></div>90° fan</div>
+        <div class="legend-item"><div class="legend-swatch" style="border:1px dashed rgba(255,255,255,0.5)"></div>Walking path</div>
+      </div>
     </div>
 
-    <div class="action-row">
-      <button class="btn btn-ghost hidden" id="st-back">Back</button>
-      <button class="btn btn-primary hidden" id="st-next">Next station</button>
+    <div class="steps-title">Step-by-step</div>
+    <ul class="steps" data-panel="compact">
+      <li class="step" data-station="1">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Corner 1 — face Wall A</div>
+          <div class="step-desc">Stand in the corner where walls D and A meet. Point your camera along Wall A (you're looking down the length of A toward corner 2). Tap Begin, then sweep right 90° until you're looking down Wall D.</div>
+          <div class="step-meta">90° fan · ~6s sweep</div>
+        </div>
+      </li>
+      <li class="step" data-station="2">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Corner 2 — face Wall B</div>
+          <div class="step-desc">Walk along Wall A to the next corner (A meets B). Point camera along Wall B. Sweep right 90° to face Wall A.</div>
+          <div class="step-meta">90° fan · ~6s sweep</div>
+        </div>
+      </li>
+      <li class="step" data-station="3">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Corner 3 — face Wall C</div>
+          <div class="step-desc">Walk along Wall B to the next corner (B meets C). Point camera along Wall C. Sweep right 90° to face Wall B.</div>
+          <div class="step-meta">90° fan · ~6s sweep</div>
+        </div>
+      </li>
+      <li class="step" data-station="4">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Corner 4 — face Wall D</div>
+          <div class="step-desc">Walk to the final corner. Point camera along Wall D. Sweep right 90° to face Wall C. Capture complete.</div>
+          <div class="step-meta">90° fan · ~6s sweep</div>
+        </div>
+      </li>
+    </ul>
+
+    <div class="tips">
+      <div class="tips-label">Tips for testing</div>
+      <ul>
+        <li>Always walk clockwise — keeps left-to-right sweep direction consistent with your motion</li>
+        <li>Hold camera at chest height; tilt slightly down to capture floor edges</li>
+        <li>The "face Wall A" instruction means "look parallel to that wall surface" — your view is along its length</li>
+        <li>Each wall ends up captured from two corners with strong angular diversity → solid SfM input</li>
+      </ul>
     </div>
   </div>
-</div>
 
-<!-- ============ HUD: WALK ============ -->
-<div class="hud hidden" id="hud-walk">
-  <div class="top-row">
-    <div class="pill">
-      <span class="dot"></span>
-      <span>Continuous walk</span>
+  <!-- ================ LONG & NARROW ================ -->
+  <div class="panel" id="panel-long">
+    <div class="protocol-title">Perimeter Loop · 8-Station</div>
+    <p class="protocol-desc">For long boardrooms or classrooms with a central conference table. Walk the corridor between the table and the walls; stop at corners and along long walls to capture the opposite wall from close range. No center walk required.</p>
+
+    <div class="key-box">
+      <div class="key-box-label">Key principle</div>
+      <p>Every wall must be captured from within ~5m. In a long room, you can't reach that distance to opposite long walls from the corners alone, so insert additional stations along each long wall facing across the table.</p>
     </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="label">HΔ</span><span class="value mono" id="w-head">0°</span></div>
-      <div class="stat-item"><span class="label">STEPS</span><span class="value mono" id="w-steps">0</span></div>
-      <div class="stat-item"><span class="label">SHRP</span><span class="value mono" id="w-sharp">—</span></div>
-      <div class="stat-item"><span class="label">MOT</span><span class="value mono" id="w-motion">—</span></div>
+
+    <div class="diagram-wrap">
+      <svg class="diagram-svg" viewBox="-180 -90 360 180" id="svg-long">
+        <!-- Room: 300×100 SVG units = ~15m × 5m -->
+        <rect class="room-wall" x="-150" y="-50" width="300" height="100"/>
+
+        <!-- Wall labels -->
+        <text class="wall-label" x="-150" y="-58" text-anchor="start">SHORT A</text>
+        <text class="wall-label" x="150" y="-58" text-anchor="end">SHORT B</text>
+        <text class="wall-label" x="0" y="-58" text-anchor="middle">LONG N</text>
+        <text class="wall-label" x="0" y="68" text-anchor="middle">LONG S</text>
+
+        <!-- Long conference table -->
+        <rect class="furniture" x="-110" y="-15" width="220" height="30" rx="4"/>
+        <text class="furniture-label" x="0" y="3" text-anchor="middle">CONFERENCE TABLE</text>
+
+        <!-- Chairs along both long sides + ends -->
+        <rect class="chair" x="-100" y="-25" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="-75" y="-25" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="-50" y="-25" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="-25" y="-25" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="0" y="-25" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="25" y="-25" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="50" y="-25" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="75" y="-25" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="-100" y="17" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="-75" y="17" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="-50" y="17" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="-25" y="17" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="0" y="17" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="25" y="17" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="50" y="17" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="75" y="17" width="12" height="8" rx="1.5"/>
+        <rect class="chair" x="-122" y="-6" width="8" height="12" rx="1.5"/>
+        <rect class="chair" x="114" y="-6" width="8" height="12" rx="1.5"/>
+
+        <!-- Walking path: clockwise loop in the corridor -->
+        <path class="walk-path" d="M -135 -38 L 135 -38 L 135 38 L -135 38 Z"/>
+        <polygon class="walk-arrow" points="-60,-42 -54,-38 -60,-34"/>
+        <polygon class="walk-arrow" points="60,-42 66,-38 60,-34"/>
+        <polygon class="walk-arrow" points="139,0 134,-6 144,-6"/>
+        <polygon class="walk-arrow" points="60,42 54,38 60,34"/>
+        <polygon class="walk-arrow" points="-60,42 -66,38 -60,34"/>
+        <polygon class="walk-arrow" points="-139,0 -134,6 -144,6"/>
+
+        <!-- Station 1: NW corner (90° fan opening SE into room) -->
+        <path class="fan-wedge" id="fan-l-1" d="M -135 -38 L -85 -38 A 50 50 0 0 1 -135 12 Z"/>
+        <path class="sweep-arrow" d="M -111 -18 A 25 25 0 0 1 -117 -12"/>
+        <polygon fill="#4dd4ff" points="-113,-9 -120,-14 -120,-3"/>
+        <g data-station="1">
+          <circle class="station-circle" cx="-135" cy="-38" r="11"/>
+          <text class="station-num" x="-135" y="-38">1</text>
+        </g>
+
+        <!-- Station 2: Long N at 1/3, 90° fan facing S -->
+        <path class="fan-wedge" id="fan-l-2" d="M -50 -38 L -10 -38 A 40 40 0 0 1 -50 2 Z"/>
+        <path class="sweep-arrow" d="M -32 -20 A 18 18 0 0 1 -38 -14"/>
+        <polygon fill="#4dd4ff" points="-34,-12 -41,-16 -41,-7"/>
+        <g data-station="2">
+          <circle class="station-circle" cx="-50" cy="-38" r="11"/>
+          <text class="station-num" x="-50" y="-38">2</text>
+        </g>
+
+        <!-- Station 3: Long N at 2/3, 90° fan facing S -->
+        <path class="fan-wedge" id="fan-l-3" d="M 50 -38 L 90 -38 A 40 40 0 0 1 50 2 Z"/>
+        <path class="sweep-arrow" d="M 68 -20 A 18 18 0 0 1 62 -14"/>
+        <polygon fill="#4dd4ff" points="66,-12 59,-16 59,-7"/>
+        <g data-station="3">
+          <circle class="station-circle" cx="50" cy="-38" r="11"/>
+          <text class="station-num" x="50" y="-38">3</text>
+        </g>
+
+        <!-- Station 4: NE corner (90° fan opening SW) -->
+        <path class="fan-wedge" id="fan-l-4" d="M 135 -38 L 135 12 A 50 50 0 0 1 85 -38 Z"/>
+        <path class="sweep-arrow" d="M 117 -12 A 25 25 0 0 1 111 -18"/>
+        <polygon fill="#4dd4ff" points="120,-3 120,-14 113,-9"/>
+        <g data-station="4">
+          <circle class="station-circle" cx="135" cy="-38" r="11"/>
+          <text class="station-num" x="135" y="-38">4</text>
+        </g>
+
+        <!-- Station 5: SE corner (90° fan opening NW) -->
+        <path class="fan-wedge" id="fan-l-5" d="M 135 38 L 85 38 A 50 50 0 0 1 135 -12 Z"/>
+        <path class="sweep-arrow" d="M 111 18 A 25 25 0 0 1 117 12"/>
+        <polygon fill="#4dd4ff" points="113,9 120,14 120,3"/>
+        <g data-station="5">
+          <circle class="station-circle" cx="135" cy="38" r="11"/>
+          <text class="station-num" x="135" y="38">5</text>
+        </g>
+
+        <!-- Station 6: Long S at 2/3, 90° fan facing N -->
+        <path class="fan-wedge" id="fan-l-6" d="M 50 38 L 10 38 A 40 40 0 0 1 50 -2 Z"/>
+        <path class="sweep-arrow" d="M 32 20 A 18 18 0 0 1 38 14"/>
+        <polygon fill="#4dd4ff" points="34,12 41,16 41,7"/>
+        <g data-station="6">
+          <circle class="station-circle" cx="50" cy="38" r="11"/>
+          <text class="station-num" x="50" y="38">6</text>
+        </g>
+
+        <!-- Station 7: Long S at 1/3, 90° fan facing N -->
+        <path class="fan-wedge" id="fan-l-7" d="M -50 38 L -90 38 A 40 40 0 0 1 -50 -2 Z"/>
+        <path class="sweep-arrow" d="M -68 20 A 18 18 0 0 1 -62 14"/>
+        <polygon fill="#4dd4ff" points="-66,12 -59,16 -59,7"/>
+        <g data-station="7">
+          <circle class="station-circle" cx="-50" cy="38" r="11"/>
+          <text class="station-num" x="-50" y="38">7</text>
+        </g>
+
+        <!-- Station 8: SW corner (90° fan opening NE) -->
+        <path class="fan-wedge" id="fan-l-8" d="M -135 38 L -135 -12 A 50 50 0 0 1 -85 38 Z"/>
+        <path class="sweep-arrow" d="M -117 12 A 25 25 0 0 1 -111 18"/>
+        <polygon fill="#4dd4ff" points="-120,3 -120,14 -113,9"/>
+        <g data-station="8">
+          <circle class="station-circle" cx="-135" cy="38" r="11"/>
+          <text class="station-num" x="-135" y="38">8</text>
+        </g>
+
+        <!-- Scale -->
+        <line class="scale-bar" x1="-150" y1="78" x2="-50" y2="78"/>
+        <line class="scale-bar" x1="-150" y1="74" x2="-150" y2="82"/>
+        <line class="scale-bar" x1="-50" y1="74" x2="-50" y2="82"/>
+        <text class="scale-label" x="-100" y="88" text-anchor="middle">~5m</text>
+      </svg>
+      <div class="diagram-caption">~15m × 5m boardroom · clockwise corridor walk · 8 stations on perimeter</div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:#4dd4ff"></div>Station</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(77,212,255,0.32); border:1px dashed rgba(77,212,255,0.6)"></div>90° fan</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.22)"></div>Table / chairs</div>
+        <div class="legend-item"><div class="legend-swatch" style="border:1px dashed rgba(255,255,255,0.5)"></div>Walking corridor</div>
+      </div>
+    </div>
+
+    <div class="steps-title">Step-by-step (15m room — scale up for longer)</div>
+    <ul class="steps" data-panel="long">
+      <li class="step" data-station="1">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">NW corner</div>
+          <div class="step-desc">Start in the corner where Short A meets Long N. Face along Long N (look down the length of N toward NE corner). Sweep right 90° until you face along Short A. Captures both adjacent walls at the corner.</div>
+          <div class="step-meta">90° fan · corner station</div>
+        </div>
+      </li>
+      <li class="step" data-station="2">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Long N · 1/3 along</div>
+          <div class="step-desc">Walk ~5m east along Long N, staying in the corridor between the wall and the chairs. Turn to face Long S directly (perpendicular to your walk). Sweep right 90° — start looking SW (back toward the SW area), end looking SE (toward the next station's region). Captures a section of Long S from close range.</div>
+          <div class="step-meta">90° fan · faces across the table</div>
+        </div>
+      </li>
+      <li class="step" data-station="3">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Long N · 2/3 along</div>
+          <div class="step-desc">Continue east along Long N. Face Long S again. Sweep right 90° (same procedure as station 2). This second N-wall midpoint covers the eastern half of Long S that station 2 didn't reach.</div>
+          <div class="step-meta">90° fan · faces across the table</div>
+        </div>
+      </li>
+      <li class="step" data-station="4">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">NE corner</div>
+          <div class="step-desc">Continue to the NE corner. Face along Short B. Sweep right 90° until you face along Long N (looking back west). Captures both walls at the NE corner.</div>
+          <div class="step-meta">90° fan · corner station</div>
+        </div>
+      </li>
+      <li class="step" data-station="5">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">SE corner</div>
+          <div class="step-desc">Walk south along Short B to the SE corner. Face along Long S (looking west). Sweep right 90° to face along Short B.</div>
+          <div class="step-meta">90° fan · corner station</div>
+        </div>
+      </li>
+      <li class="step" data-station="6">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-title">Long S · 2/3 along</div>
+          <div class="step-desc">Walk ~5m west along Long S, again in the corridor. Face Long N (perpendicular). Sweep right 90° — same procedure as stations 2 &amp; 3 but mirrored. Captures the eastern half of Long N from close range.</div>
+          <div class="step-meta">90° fan · faces across the table</div>
+        </div>
+      </li>
+      <li class="step" data-station="7">
+        <div class="step-num">7</div>
+        <div class="step-body">
+          <div class="step-title">Long S · 1/3 along</div>
+          <div class="step-desc">Continue west along Long S. Face Long N. Sweep right 90°. Covers the western half of Long N.</div>
+          <div class="step-meta">90° fan · faces across the table</div>
+        </div>
+      </li>
+      <li class="step" data-station="8">
+        <div class="step-num">8</div>
+        <div class="step-body">
+          <div class="step-title">SW corner</div>
+          <div class="step-desc">Final corner. Face along Short A (looking north). Sweep right 90° until you face along Long S. Capture complete.</div>
+          <div class="step-meta">90° fan · corner station</div>
+        </div>
+      </li>
+    </ul>
+
+    <div class="tips">
+      <div class="tips-label">Scaling &amp; gotchas</div>
+      <ul>
+        <li>15m room: 2 stations per long wall as shown</li>
+        <li>20m room: 3 stations per long wall (~5m spacing along each long wall)</li>
+        <li>25m+ room: 4 stations per long wall + consider splitting into multiple captures</li>
+        <li>Every wall ends up captured from at least 2 stations with translation baseline between them — the SfM-friendly geometry is preserved despite never walking the center</li>
+        <li>If chairs are pulled out into the corridor, walk around them as if they were obstacles — they don't break the protocol, just the visual symmetry</li>
+        <li>Whiteboards on long walls are typically at ~5m from the opposite wall midpoint stations — that's detection-grade pixel density</li>
+      </ul>
     </div>
   </div>
 
-  <div class="bottom-stack">
-    <div class="guidance" id="w-guidance">
-      <div class="guidance-msg" id="w-msg">Walk slowly around the room</div>
-      <div class="guidance-sub">camera pointed toward room center</div>
+  <!-- ================ IRREGULAR ================ -->
+  <div class="panel" id="panel-irregular">
+    <div class="protocol-title">Continuous Perimeter Walk</div>
+    <p class="protocol-desc">For L-shapes, alcoves, multi-corner rooms, or any non-rectangular geometry. No discrete stations — walk the perimeter slowly with the camera pointed at the room interior, pausing briefly at every corner.</p>
+
+    <div class="key-box">
+      <div class="key-box-label">Key principle</div>
+      <p>Concave corners (where walls turn <em>inward</em>) are the failure point of every protocol — they're poorly seen from anywhere outside the alcove. Always pause and pan at a concave corner.</p>
     </div>
 
-    <div class="walk-viz">
-      <div class="walk-bar-track">
-        <div class="walk-bar-fill" id="w-fill"></div>
+    <div class="diagram-wrap">
+      <svg class="diagram-svg" viewBox="-180 -150 360 300" id="svg-irregular">
+        <!-- L-shape: outer corners + one concave inner corner -->
+        <!-- Path: NW(-140,-100) → NE(80,-100) → inside(80,20) → outsideRight(140,20) → SE(140,120) → SW(-140,120) → close -->
+        <path class="room-wall" d="M -140 -100 L 80 -100 L 80 20 L 140 20 L 140 120 L -140 120 Z"/>
+
+        <!-- Wall labels -->
+        <text class="wall-label" x="-30" y="-108" text-anchor="middle">N (long)</text>
+        <text class="wall-label" x="88" y="-40" text-anchor="start">E</text>
+        <text class="wall-label" x="110" y="14" text-anchor="middle">inner</text>
+        <text class="wall-label" x="148" y="70" text-anchor="start">E2</text>
+        <text class="wall-label" x="0" y="140" text-anchor="middle">S (long)</text>
+        <text class="wall-label" x="-148" y="10" text-anchor="end">W</text>
+
+        <!-- Furniture: small meeting table in upper arm, seating in lower arm -->
+        <rect class="furniture" x="-80" y="-60" width="100" height="40" rx="4"/>
+        <text class="furniture-label" x="-30" y="-37" text-anchor="middle">TABLE</text>
+        <rect class="chair" x="-70" y="-72" width="11" height="8" rx="1.5"/>
+        <rect class="chair" x="-50" y="-72" width="11" height="8" rx="1.5"/>
+        <rect class="chair" x="-30" y="-72" width="11" height="8" rx="1.5"/>
+        <rect class="chair" x="-10" y="-72" width="11" height="8" rx="1.5"/>
+        <rect class="chair" x="-70" y="-16" width="11" height="8" rx="1.5"/>
+        <rect class="chair" x="-50" y="-16" width="11" height="8" rx="1.5"/>
+        <rect class="chair" x="-30" y="-16" width="11" height="8" rx="1.5"/>
+        <rect class="chair" x="-10" y="-16" width="11" height="8" rx="1.5"/>
+        <!-- Couch / soft seating in lower arm -->
+        <rect class="furniture" x="-100" y="60" width="80" height="28" rx="6"/>
+        <text class="furniture-label" x="-60" y="78" text-anchor="middle">SEATING</text>
+        <rect class="furniture" x="40" y="60" width="60" height="40" rx="4"/>
+        <text class="furniture-label" x="70" y="83" text-anchor="middle">CABINET</text>
+
+        <!-- Concave corner indicator -->
+        <circle cx="80" cy="20" r="20" fill="rgba(255,179,71,0.12)" stroke="rgba(255,179,71,0.6)" stroke-width="1.5" stroke-dasharray="3 3"/>
+        <text x="80" y="54" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#ffb347" letter-spacing="1">CONCAVE</text>
+
+        <!-- Walking path: traces the perimeter inset, around furniture -->
+        <path class="walk-path" d="M -120 -85 L 60 -85 L 60 38 L 120 38 L 120 105 L -120 105 Z"/>
+
+        <!-- Direction arrows along path -->
+        <polygon class="walk-arrow" points="-40,-90 -34,-85 -40,-80"/>
+        <polygon class="walk-arrow" points="65,-30 60,-24 70,-24"/>
+        <polygon class="walk-arrow" points="100,43 95,38 100,33"/>
+        <polygon class="walk-arrow" points="125,72 120,78 130,78"/>
+        <polygon class="walk-arrow" points="40,110 46,105 40,100"/>
+        <polygon class="walk-arrow" points="-125,40 -120,46 -130,46"/>
+
+        <!-- Optional pause-and-pan points -->
+        <g data-station="1">
+          <circle class="station-circle" cx="-120" cy="-85" r="12"/>
+          <text class="station-num" x="-120" y="-85">1</text>
+        </g>
+        <g data-station="2">
+          <circle class="station-circle" cx="60" cy="-85" r="12"/>
+          <text class="station-num" x="60" y="-85">2</text>
+        </g>
+        <g data-station="3">
+          <circle class="station-circle" cx="60" cy="38" r="12"/>
+          <text class="station-num" x="60" y="38">3</text>
+        </g>
+        <g data-station="4">
+          <circle class="station-circle" cx="120" cy="38" r="12"/>
+          <text class="station-num" x="120" y="38">4</text>
+        </g>
+        <g data-station="5">
+          <circle class="station-circle" cx="120" cy="105" r="12"/>
+          <text class="station-num" x="120" y="105">5</text>
+        </g>
+        <g data-station="6">
+          <circle class="station-circle" cx="-120" cy="105" r="12"/>
+          <text class="station-num" x="-120" y="105">6</text>
+        </g>
+
+        <!-- Scale -->
+        <line class="scale-bar" x1="-140" y1="-135" x2="-60" y2="-135"/>
+        <line class="scale-bar" x1="-140" y1="-139" x2="-140" y2="-131"/>
+        <line class="scale-bar" x1="-60" y1="-139" x2="-60" y2="-131"/>
+        <text class="scale-label" x="-100" y="-122" text-anchor="middle">~2m</text>
+      </svg>
+      <div class="diagram-caption">L-shaped room with mixed furniture · perimeter walk around obstacles · pause-and-pan at the concave corner</div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:#4dd4ff"></div>Pause-and-pan</div>
+        <div class="legend-item"><div class="legend-swatch" style="border:1px dashed rgba(255,179,71,0.7); background:rgba(255,179,71,0.12)"></div>Concave corner</div>
+        <div class="legend-item"><div class="legend-swatch" style="border:1px dashed rgba(255,255,255,0.5)"></div>Walking path</div>
       </div>
-      <div class="walk-step-row" id="w-steps-row"></div>
     </div>
 
-    <div class="action-row">
-      <button class="btn btn-primary" id="w-finish">Finish capture</button>
+    <div class="steps-title">Procedure</div>
+    <ul class="steps" data-panel="irregular">
+      <li class="step" data-station="1">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Start at any outer corner</div>
+          <div class="step-desc">Stand near (but not in) a corner of the room. Hold camera at chest height, pointed at the room interior — roughly toward the opposite far corner.</div>
+          <div class="step-meta">camera ~1.5m from walls</div>
+        </div>
+      </li>
+      <li class="step" data-station="2">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Walk slowly along the perimeter</div>
+          <div class="step-desc">Stay roughly 1.5–2m from the walls. Walk at a steady pace (~0.5 m/s). Camera stays pointed toward the room interior — not at the wall you're walking past.</div>
+          <div class="step-meta">slow, consistent motion</div>
+        </div>
+      </li>
+      <li class="step" data-station="3">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Pause at every convex corner</div>
+          <div class="step-desc">When walls turn outward (the typical "corner of a room"), stop for ~1s. Don't pan — just let the camera capture stable frames while your orientation changes.</div>
+          <div class="step-meta">~1s pause</div>
+        </div>
+      </li>
+      <li class="step" data-station="4">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Pan at concave corners</div>
+          <div class="step-desc">At any inward-turning corner (the inside of an L, an alcove, a recessed section), stop and pan 90° to capture the inner geometry directly. These corners are poorly seen from anywhere else in the room.</div>
+          <div class="step-meta">90° pan · critical for L-shapes</div>
+        </div>
+      </li>
+      <li class="step" data-station="5">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Cover alcoves & recessed areas</div>
+          <div class="step-desc">If the room has small recesses (under-stair alcoves, mechanical closets), walk into each one briefly and pan to capture interior surfaces.</div>
+          <div class="step-meta">~5s per alcove</div>
+        </div>
+      </li>
+      <li class="step" data-station="6">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-title">Complete the loop</div>
+          <div class="step-desc">Return to the starting point. The capture should loop closed — same orientation at start and end gives the loop-closure constraint that helps SfM correct drift.</div>
+          <div class="step-meta">loop closure</div>
+        </div>
+      </li>
+    </ul>
+
+    <div class="tips">
+      <div class="tips-label">Failure modes</div>
+      <ul>
+        <li>Concave corners are the #1 failure point — set a deliberate pause-and-pan</li>
+        <li>Walking too fast → motion blur, frames rejected by QA gate</li>
+        <li>Camera pointed AT walls (instead of room interior) → loses parallax baseline; you'd just be panoramic-mapping the wall</li>
+        <li>Skipping alcoves → those surfaces don't exist in the reconstruction</li>
+      </ul>
     </div>
   </div>
-</div>
 
-<!-- ============ COMPLETE ============ -->
-<div class="screen hidden" id="screen-complete">
-  <div class="screen-bg"></div>
-  <div class="ins-content" style="text-align:center; align-items:center;">
-    <div class="check-wrap">
-      <svg viewBox="0 0 24 24"><polyline points="4 12.5 10 18 20 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
-    <h1 class="display">Capture complete</h1>
-    <p class="lede" id="cs-proto-name">Protocol</p>
+  <!-- ================ LARGE OPEN ================ -->
+  <div class="panel" id="panel-open">
+    <div class="protocol-title">8-Station Hybrid · Corners + Wall Midpoints</div>
+    <p class="protocol-desc">For square or near-square boardrooms larger than ~10m on a side. Corner stations alone leave the middle of each wall too far for detail. Add wall-midpoint stations in the corridor between the table and each wall — each one captures the opposite wall from close range.</p>
 
-    <div class="summary-grid">
-      <div class="stat-card">
-        <div class="stat-card-val" id="cs-stations">0/0</div>
-        <div class="stat-card-lbl" id="cs-stations-lbl">Stations</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-val" id="cs-coverage">0%</div>
-        <div class="stat-card-lbl">Avg coverage</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-val" id="cs-frames">0</div>
-        <div class="stat-card-lbl">QA-pass ticks</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-val" id="cs-time">0s</div>
-        <div class="stat-card-lbl">Duration</div>
-      </div>
+    <div class="key-box">
+      <div class="key-box-label">Key principle</div>
+      <p>From a 15m × 15m corner, the opposite wall is 21m diagonal away. Adding wall-midpoint stations (in the perimeter corridor, NOT the room center which is blocked by the table) puts every wall within ~10m. The 8 stations together give every surface multi-view coverage with strong baselines.</p>
     </div>
 
-    <div class="ins-actions" style="width:100%;">
-      <button class="btn btn-primary" id="cs-restart">New capture</button>
+    <div class="diagram-wrap">
+      <svg class="diagram-svg" viewBox="-180 -180 360 360" id="svg-open">
+        <!-- Larger room: ~15m × 15m -->
+        <rect class="room-wall" x="-140" y="-140" width="280" height="280"/>
+
+        <!-- Wall labels -->
+        <text class="wall-label" x="0" y="-150" text-anchor="middle">WALL A</text>
+        <text class="wall-label" x="148" y="4" text-anchor="start">B</text>
+        <text class="wall-label" x="0" y="162" text-anchor="middle">WALL C</text>
+        <text class="wall-label" x="-148" y="4" text-anchor="end">D</text>
+
+        <!-- Large central conference table (~6m × 3m) -->
+        <rect class="furniture" x="-60" y="-30" width="120" height="60" rx="4"/>
+        <text class="furniture-label" x="0" y="4" text-anchor="middle">CONFERENCE TABLE</text>
+
+        <!-- Chairs around the table -->
+        <rect class="chair" x="-50" y="-44" width="12" height="9" rx="1.5"/>
+        <rect class="chair" x="-30" y="-44" width="12" height="9" rx="1.5"/>
+        <rect class="chair" x="-10" y="-44" width="12" height="9" rx="1.5"/>
+        <rect class="chair" x="10" y="-44" width="12" height="9" rx="1.5"/>
+        <rect class="chair" x="30" y="-44" width="12" height="9" rx="1.5"/>
+        <rect class="chair" x="-50" y="35" width="12" height="9" rx="1.5"/>
+        <rect class="chair" x="-30" y="35" width="12" height="9" rx="1.5"/>
+        <rect class="chair" x="-10" y="35" width="12" height="9" rx="1.5"/>
+        <rect class="chair" x="10" y="35" width="12" height="9" rx="1.5"/>
+        <rect class="chair" x="30" y="35" width="12" height="9" rx="1.5"/>
+        <rect class="chair" x="-72" y="-7" width="9" height="14" rx="1.5"/>
+        <rect class="chair" x="63" y="-7" width="9" height="14" rx="1.5"/>
+
+        <!-- Additional perimeter furniture: side credenza + AV cart -->
+        <rect class="furniture" x="-100" y="-130" width="60" height="18" rx="2"/>
+        <text class="furniture-label" x="-70" y="-118" text-anchor="middle">CREDENZA</text>
+        <rect class="furniture" x="60" y="112" width="50" height="20" rx="2"/>
+        <text class="furniture-label" x="85" y="125" text-anchor="middle">AV</text>
+
+        <!-- Corner fans (90° each, opening into the room) -->
+        <path class="fan-wedge" d="M -140 -140 L -70 -140 A 70 70 0 0 1 -140 -70 Z"/>
+        <path class="fan-wedge" d="M 140 -140 L 140 -70 A 70 70 0 0 1 70 -140 Z"/>
+        <path class="fan-wedge" d="M 140 140 L 70 140 A 70 70 0 0 1 140 70 Z"/>
+        <path class="fan-wedge" d="M -140 140 L -140 70 A 70 70 0 0 1 -70 140 Z"/>
+
+        <!-- Wall-midpoint fans (90° each, facing the opposite wall across the table) -->
+        <!-- Station 5: midpoint of Wall A (top), facing south toward Wall C -->
+        <path class="fan-wedge" d="M 0 -110 L 45 -110 A 45 45 0 0 1 -45 -110 Z"/>
+        <!-- Station 6: midpoint of Wall B (right), facing west toward Wall D -->
+        <path class="fan-wedge" d="M 110 0 L 110 45 A 45 45 0 0 1 110 -45 Z"/>
+        <!-- Station 7: midpoint of Wall C (bottom), facing north toward Wall A -->
+        <path class="fan-wedge" d="M 0 110 L -45 110 A 45 45 0 0 1 45 110 Z"/>
+        <!-- Station 8: midpoint of Wall D (left), facing east toward Wall B -->
+        <path class="fan-wedge" d="M -110 0 L -110 -45 A 45 45 0 0 1 -110 45 Z"/>
+
+        <!-- Walking path: clockwise perimeter loop (in corridor between furniture and walls) -->
+        <path class="walk-path" d="M -120 -120 L 120 -120 L 120 120 L -120 120 Z"/>
+        <polygon class="walk-arrow" points="0,-125 -6,-120 -6,-130"/>
+        <polygon class="walk-arrow" points="125,0 120,-6 130,-6"/>
+        <polygon class="walk-arrow" points="0,125 6,120 6,130"/>
+        <polygon class="walk-arrow" points="-125,0 -120,6 -130,6"/>
+
+        <!-- Station circles -->
+        <g data-station="1"><circle class="station-circle" cx="-140" cy="-140" r="13"/><text class="station-num" x="-140" y="-140">1</text></g>
+        <g data-station="2"><circle class="station-circle" cx="140" cy="-140" r="13"/><text class="station-num" x="140" y="-140">2</text></g>
+        <g data-station="3"><circle class="station-circle" cx="140" cy="140" r="13"/><text class="station-num" x="140" y="140">3</text></g>
+        <g data-station="4"><circle class="station-circle" cx="-140" cy="140" r="13"/><text class="station-num" x="-140" y="140">4</text></g>
+        <g data-station="5"><circle class="station-circle" cx="0" cy="-110" r="13"/><text class="station-num" x="0" y="-110">5</text></g>
+        <g data-station="6"><circle class="station-circle" cx="110" cy="0" r="13"/><text class="station-num" x="110" y="0">6</text></g>
+        <g data-station="7"><circle class="station-circle" cx="0" cy="110" r="13"/><text class="station-num" x="0" y="110">7</text></g>
+        <g data-station="8"><circle class="station-circle" cx="-110" cy="0" r="13"/><text class="station-num" x="-110" y="0">8</text></g>
+
+        <!-- Scale -->
+        <line class="scale-bar" x1="-140" y1="168" x2="-46" y2="168"/>
+        <line class="scale-bar" x1="-140" y1="164" x2="-140" y2="172"/>
+        <line class="scale-bar" x1="-46" y1="164" x2="-46" y2="172"/>
+        <text class="scale-label" x="-93" y="180" text-anchor="middle">~5m</text>
+      </svg>
+      <div class="diagram-caption">~15m × 15m boardroom · 4 corners + 4 wall midpoints · perimeter walk only</div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:#4dd4ff"></div>Station</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(77,212,255,0.32); border:1px dashed rgba(77,212,255,0.6)"></div>90° fan</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.22)"></div>Table / furniture</div>
+        <div class="legend-item"><div class="legend-swatch" style="border:1px dashed rgba(255,255,255,0.5)"></div>Walking corridor</div>
+      </div>
+    </div>
+
+    <div class="steps-title">Step-by-step</div>
+    <ul class="steps" data-panel="open">
+      <li class="step" data-station="1">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Corner 1 (NW)</div>
+          <div class="step-desc">Face Wall A, sweep right 90° to face Wall D.</div>
+          <div class="step-meta">90° fan · corner</div>
+        </div>
+      </li>
+      <li class="step" data-station="5">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Wall A midpoint</div>
+          <div class="step-desc">Walk east along Wall A to its midpoint, in the corridor between the wall and the table. Turn to face Wall C (perpendicular across the table). Sweep right 90°. Captures Wall C from ~10m — much closer than from any corner.</div>
+          <div class="step-meta">90° fan · faces opposite wall</div>
+        </div>
+      </li>
+      <li class="step" data-station="2">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Corner 2 (NE)</div>
+          <div class="step-desc">Continue along Wall A. Face Wall B, sweep right 90° to face Wall A.</div>
+          <div class="step-meta">90° fan · corner</div>
+        </div>
+      </li>
+      <li class="step" data-station="6">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-title">Wall B midpoint</div>
+          <div class="step-desc">Walk south along Wall B to its midpoint. Face Wall D (perpendicular across the table). Sweep right 90°.</div>
+          <div class="step-meta">90° fan · faces opposite wall</div>
+        </div>
+      </li>
+      <li class="step" data-station="3">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Corner 3 (SE)</div>
+          <div class="step-desc">Continue to the SE corner. Face Wall C, sweep right 90° to face Wall B.</div>
+          <div class="step-meta">90° fan · corner</div>
+        </div>
+      </li>
+      <li class="step" data-station="7">
+        <div class="step-num">7</div>
+        <div class="step-body">
+          <div class="step-title">Wall C midpoint</div>
+          <div class="step-desc">Walk west along Wall C to its midpoint. Face Wall A (perpendicular across the table). Sweep right 90°.</div>
+          <div class="step-meta">90° fan · faces opposite wall</div>
+        </div>
+      </li>
+      <li class="step" data-station="4">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Corner 4 (SW)</div>
+          <div class="step-desc">Continue to the SW corner. Face Wall D, sweep right 90° to face Wall C.</div>
+          <div class="step-meta">90° fan · corner</div>
+        </div>
+      </li>
+      <li class="step" data-station="8">
+        <div class="step-num">8</div>
+        <div class="step-body">
+          <div class="step-title">Wall D midpoint</div>
+          <div class="step-desc">Walk north along Wall D to its midpoint. Face Wall B (perpendicular across the table). Sweep right 90°. Capture complete.</div>
+          <div class="step-meta">90° fan · faces opposite wall</div>
+        </div>
+      </li>
+    </ul>
+
+    <div class="tips">
+      <div class="tips-label">Notes</div>
+      <ul>
+        <li>Every wall ends up captured from 3 stations: 2 corners (at angles, with strong baselines) + 1 wall midpoint (close, perpendicular). That's ideal SfM + segmentation geometry.</li>
+        <li>Rooms over ~20m: insert additional wall stations at ¼ and ¾ along each long wall (12 stations total)</li>
+        <li>If the room has elevated features (mezzanines, hanging displays, high ceilings), tilt camera up at corner stations for an additional pass</li>
+        <li>Watch for perimeter obstacles (credenzas, AV carts, plants) — walk around them, keep camera pointed across the room</li>
+        <li>The order corners → wall-midpoints alternating means you're never walking past a station you've already done; the path is one continuous clockwise loop</li>
+      </ul>
     </div>
   </div>
+
 </div>
 
 <script>
 (() => {
-  // ============ PROTOCOLS ============
-  const PROTOCOLS = {
-    continuous: {
-      id: 'continuous', name: 'Continuous walk',
-      isWalk: true, targetSweep: 360, minSteps: 12,
-    },
-    fourCorner: {
-      id: 'fourCorner', name: '4-corner',
-      stations: [
-        { label: 'Corner 1', instruction: 'Stand in any corner. Point your camera at the diagonally opposite corner. Sweep ±45° to capture both visible walls.', fanDeg: 90 },
-        { label: 'Corner 2', instruction: 'Walk to the next corner clockwise. Point toward the diagonal. Sweep ±45°.', fanDeg: 90 },
-        { label: 'Corner 3', instruction: 'Walk to the next corner. Same procedure: face the diagonal, sweep ±45°.', fanDeg: 90 },
-        { label: 'Corner 4', instruction: 'Final corner. Face the diagonal and sweep ±45°.', fanDeg: 90 },
-      ],
-    },
-    eightStation: {
-      id: 'eightStation', name: '8-station hybrid',
-      stations: [
-        { label: 'Corner 1', instruction: 'Stand in any corner. Point camera at the diagonally opposite corner. Sweep ±45°.', fanDeg: 90 },
-        { label: 'Wall center 1', instruction: 'Move to the center of the wall on your right. Point camera perpendicular at the opposite wall. Sweep ±90°.', fanDeg: 180 },
-        { label: 'Corner 2', instruction: 'Move to the next corner clockwise. Face the diagonal. Sweep ±45°.', fanDeg: 90 },
-        { label: 'Wall center 2', instruction: 'Move to the next wall center. Face the opposite wall. Sweep ±90°.', fanDeg: 180 },
-        { label: 'Corner 3', instruction: 'Move to the next corner. Face the diagonal. Sweep ±45°.', fanDeg: 90 },
-        { label: 'Wall center 3', instruction: 'Move to the next wall center. Face the opposite wall. Sweep ±90°.', fanDeg: 180 },
-        { label: 'Corner 4', instruction: 'Final corner. Face the diagonal. Sweep ±45°.', fanDeg: 90 },
-        { label: 'Wall center 4', instruction: 'Final wall center. Face the opposite wall. Sweep ±90°.', fanDeg: 180 },
-      ],
-    },
-  };
+  const tabs = document.querySelectorAll('.tab');
+  const panels = document.querySelectorAll('.panel');
 
-  // ============ TUNING ============
-  const BUCKET_DEG = 10;
-  const DWELL_MS = 500;
-  const MOTION_BAD = 80;
-  const MOTION_OK = 30;
-  const SHARP_BAD = 80;
-  const SHARP_OK = 250;
-  const STEP_ACCEL_THRESHOLD = 1.2;
-  const STEP_MIN_INTERVAL_MS = 320;
-
-  // ============ STATE ============
-  const state = {
-    screen: 'select',
-    protocol: null,
-    stationIdx: 0,
-    captureStartTime: 0,
-    refAlpha: null,
-    alpha: 0, beta: 0,
-    motion: 0, sharp: 0,
-    stationStartAlpha: 0,
-    fanBuckets: [],
-    fanBucketCount: 0,
-    currentBucket: -1,
-    bucketEnterTime: 0,
-    qaFrames: 0,
-    walkStartAlpha: 0,
-    totalAbsRot: 0,
-    prevAlpha: 0,
-    steps: 0,
-    lastStepTime: 0,
-    walkQaFrames: 0,
-    stationCoverages: [],
-  };
-
-  const $ = (id) => document.getElementById(id);
-  const video = $('video');
-  const analysis = $('analysis');
-  const actx = analysis.getContext('2d', { willReadFrequently: true });
-
-  // ============ CAMERA + SENSORS ============
-  async function startCamera() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
-      });
-      video.srcObject = stream;
-      await video.play();
-      return true;
-    } catch {
-      document.querySelector('.cam-wrap').innerHTML =
-        '<div class="cam-placeholder">// camera blocked — IMU-only mode</div>';
-      return false;
-    }
-  }
-
-  async function requestMotion() {
-    let ok = true;
-    if (typeof DeviceMotionEvent?.requestPermission === 'function') {
-      try { ok = ok && (await DeviceMotionEvent.requestPermission()) === 'granted'; }
-      catch { ok = false; }
-    }
-    if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
-      try { ok = ok && (await DeviceOrientationEvent.requestPermission()) === 'granted'; }
-      catch { ok = false; }
-    }
-    return ok;
-  }
-
-  function alphaDelta(curr, prev) {
-    let d = curr - prev;
-    if (d > 180) d -= 360;
-    if (d < -180) d += 360;
-    return d;
-  }
-
-  function onOrientation(e) {
-    if (e.alpha == null) return;
-    if (state.refAlpha == null) state.refAlpha = e.alpha;
-    const a = (e.alpha - state.refAlpha + 360) % 360;
-    if (state.screen === 'walk') {
-      const d = alphaDelta(a, state.prevAlpha);
-      if (Math.abs(d) < 30) state.totalAbsRot += Math.abs(d);
-    }
-    state.prevAlpha = a;
-    state.alpha = a;
-    state.beta = e.beta || 0;
-  }
-
-  function onMotion(e) {
-    const r = e.rotationRate;
-    if (r) state.motion = Math.sqrt((r.alpha||0)**2 + (r.beta||0)**2 + (r.gamma||0)**2);
-    const a = e.acceleration;
-    if (a && (a.x != null || a.y != null || a.z != null)) {
-      const mag = Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2);
-      maybeStep(mag);
-    } else {
-      const ag = e.accelerationIncludingGravity;
-      if (ag) {
-        const mag = Math.abs(Math.sqrt((ag.x||0)**2 + (ag.y||0)**2 + (ag.z||0)**2) - 9.8);
-        maybeStep(mag);
-      }
-    }
-  }
-
-  function maybeStep(mag) {
-    const now = performance.now();
-    if (mag > STEP_ACCEL_THRESHOLD && now - state.lastStepTime > STEP_MIN_INTERVAL_MS) {
-      state.steps++;
-      state.lastStepTime = now;
-    }
-  }
-
-  function analyzeFrame() {
-    if (!video.videoWidth) return;
-    const w = analysis.width, h = analysis.height;
-    actx.drawImage(video, 0, 0, w, h);
-    const d = actx.getImageData(0, 0, w, h).data;
-    const gray = new Float32Array(w * h);
-    for (let i = 0, j = 0; i < d.length; i += 4, j++) {
-      gray[j] = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-    }
-    let sum = 0, sumSq = 0, n = 0;
-    for (let y = 1; y < h - 1; y++) {
-      for (let x = 1; x < w - 1; x++) {
-        const i = y * w + x;
-        const lap = -4 * gray[i] + gray[i-1] + gray[i+1] + gray[i-w] + gray[i+w];
-        sum += lap; sumSq += lap * lap; n++;
-      }
-    }
-    const mean = sum / n;
-    state.sharp = sumSq / n - mean * mean;
-  }
-
-  // ============ FAN GEOMETRY ============
-  // The fan is drawn as a horizontal arc. We map an offset (degrees from
-  // station start) to a point on a wide, shallow arc curving down at the ends.
-  const FAN_W = 460;   // total visual width
-  const FAN_DEPTH = 32; // how much the arc curves down at the edges
-  const FAN_BAR_Y = 18; // baseline y position
-
-  function offsetToFanPoint(offsetDeg, fanDeg) {
-    // Normalize to -1..+1 across the fan
-    const t = Math.max(-1, Math.min(1, offsetDeg / (fanDeg / 2)));
-    const x = t * (FAN_W / 2);
-    // Parabolic curve: deeper at edges
-    const y = FAN_BAR_Y + (t * t) * FAN_DEPTH;
-    return { x, y };
-  }
-
-  function buildFanBaseline(fanDeg) {
-    const steps = 40;
-    let d = '';
-    for (let i = 0; i <= steps; i++) {
-      const offset = -fanDeg/2 + (i / steps) * fanDeg;
-      const p = offsetToFanPoint(offset, fanDeg);
-      d += (i === 0 ? 'M' : 'L') + ' ' + p.x.toFixed(2) + ' ' + p.y.toFixed(2) + ' ';
-    }
-    return d;
-  }
-
-  function renderFanBuckets(fanDeg) {
-    const g = $('fan-buckets');
-    g.innerHTML = '';
-    const num = Math.round(fanDeg / BUCKET_DEG);
-    state.fanBuckets = [];
-    state.fanBucketCount = num;
-    for (let i = 0; i < num; i++) {
-      const s = -fanDeg/2 + i * BUCKET_DEG;
-      const e = s + BUCKET_DEG;
-      const pS = offsetToFanPoint(s, fanDeg);
-      const pE = offsetToFanPoint(e, fanDeg);
-      // each bucket = a small segment along the arc, rendered as thick line
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', pS.x.toFixed(2));
-      line.setAttribute('y1', pS.y.toFixed(2));
-      line.setAttribute('x2', pE.x.toFixed(2));
-      line.setAttribute('y2', pE.y.toFixed(2));
-      line.setAttribute('stroke', 'rgba(255,255,255,0.18)');
-      line.setAttribute('stroke-width', '5');
-      line.setAttribute('stroke-linecap', 'round');
-      line.style.transition = 'stroke 0.2s';
-      g.appendChild(line);
-      state.fanBuckets.push({ s, e, covered: 0 });
-    }
-    $('fan-baseline').setAttribute('d', buildFanBaseline(fanDeg));
-  }
-
-  function placeFanCursor(offsetDeg, fanDeg) {
-    const halfFan = fanDeg / 2;
-    const clamped = Math.max(-halfFan - 5, Math.min(halfFan + 5, offsetDeg));
-    const p = offsetToFanPoint(clamped, fanDeg);
-    $('fan-cursor').setAttribute('transform', `translate(${p.x.toFixed(2)},${p.y.toFixed(2)})`);
-    const inFan = Math.abs(offsetDeg) <= halfFan;
-    const cursor = $('fan-cursor');
-    cursor.querySelector('circle:first-child').setAttribute('fill', inFan ? '#4dd4ff' : '#ff5266');
-    cursor.querySelector('circle:nth-child(2)').setAttribute('stroke', inFan ? '#4dd4ff' : '#ff5266');
-  }
-
-  // ============ PROTOCOL FLOW ============
-  function startProtocol(id) {
-    state.protocol = PROTOCOLS[id];
-    state.stationIdx = 0;
-    state.stationCoverages = [];
-    state.qaFrames = 0;
-    state.walkQaFrames = 0;
-    state.captureStartTime = performance.now();
-    if (state.protocol.isWalk) startWalk();
-    else showInstruction();
-  }
-
-  function showInstruction() {
-    state.screen = 'instruction';
-    setScreen('screen-instruction');
-    const st = state.protocol.stations[state.stationIdx];
-    $('ic-chip').textContent = `Station ${state.stationIdx + 1} of ${state.protocol.stations.length}`;
-    $('ic-label').textContent = st.label;
-    $('ic-instruction').textContent = st.instruction;
-    $('ic-spec').textContent = `${st.fanDeg}° fan · ±${st.fanDeg/2}° sweep`;
-  }
-
-  function beginStation() {
-    state.screen = 'station';
-    setScreen('hud-station');
-    const st = state.protocol.stations[state.stationIdx];
-    state.stationStartAlpha = state.alpha;
-    state.currentBucket = -1;
-    state.bucketEnterTime = 0;
-    renderFanBuckets(st.fanDeg);
-    $('hud-st-label').textContent = st.label;
-    $('hud-st-count').textContent = `${state.stationIdx+1}/${state.protocol.stations.length}`;
-    $('st-next').classList.add('hidden');
-    $('st-back').classList.remove('hidden');
-  }
-
-  function advanceStation() {
-    const covered = state.fanBuckets.filter(b => b.covered).length;
-    state.stationCoverages.push(covered / state.fanBucketCount);
-    state.stationIdx++;
-    if (state.stationIdx >= state.protocol.stations.length) showComplete();
-    else showInstruction();
-  }
-
-  function startWalk() {
-    state.screen = 'walk';
-    setScreen('hud-walk');
-    state.walkStartAlpha = state.alpha;
-    state.prevAlpha = state.alpha;
-    state.totalAbsRot = 0;
-    state.steps = 0;
-    state.lastStepTime = 0;
-    state.walkQaFrames = 0;
-    renderWalkSteps();
-  }
-
-  function renderWalkSteps() {
-    const row = $('w-steps-row');
-    row.innerHTML = '';
-    for (let i = 0; i < state.protocol.minSteps; i++) {
-      const dot = document.createElement('div');
-      dot.className = 'step-dot';
-      row.appendChild(dot);
-    }
-  }
-
-  function showComplete() {
-    state.screen = 'complete';
-    setScreen('screen-complete');
-    $('cs-proto-name').textContent = state.protocol.name + ' protocol';
-    let stationsStr, coverageStr, framesStr, stationsLbl;
-    if (state.protocol.isWalk) {
-      const sweepPct = Math.min(100, Math.round((state.totalAbsRot / state.protocol.targetSweep) * 100));
-      stationsStr = state.steps;
-      stationsLbl = 'Steps';
-      coverageStr = sweepPct + '%';
-      framesStr = state.walkQaFrames;
-    } else {
-      stationsStr = state.stationIdx + '/' + state.protocol.stations.length;
-      stationsLbl = 'Stations';
-      const avg = state.stationCoverages.length
-        ? state.stationCoverages.reduce((a,b) => a+b, 0) / state.stationCoverages.length : 0;
-      coverageStr = Math.round(avg * 100) + '%';
-      framesStr = state.qaFrames;
-    }
-    const dur = Math.round((performance.now() - state.captureStartTime) / 1000);
-    $('cs-stations').textContent = stationsStr;
-    $('cs-stations-lbl').textContent = stationsLbl;
-    $('cs-coverage').textContent = coverageStr;
-    $('cs-frames').textContent = framesStr;
-    $('cs-time').textContent = dur + 's';
-  }
-
-  function setScreen(id) {
-    ['screen-select', 'screen-instruction', 'screen-complete'].forEach(s => $(s).classList.add('hidden'));
-    ['hud-station', 'hud-walk'].forEach(s => $(s).classList.add('hidden'));
-    $(id).classList.remove('hidden');
-  }
-
-  // ============ UPDATE LOOPS ============
-  function updateStation() {
-    const fanDeg = state.protocol.stations[state.stationIdx].fanDeg;
-    const offset = alphaDelta(state.alpha, state.stationStartAlpha);
-    const halfFan = fanDeg / 2;
-    const now = performance.now();
-    let bucketIdx = -1;
-    if (offset >= -halfFan && offset <= halfFan) {
-      bucketIdx = Math.min(state.fanBucketCount - 1, Math.floor((offset + halfFan) / BUCKET_DEG));
-    }
-    if (bucketIdx !== state.currentBucket) {
-      state.currentBucket = bucketIdx;
-      state.bucketEnterTime = now;
-    } else if (bucketIdx >= 0 &&
-               state.motion < MOTION_BAD &&
-               state.sharp > SHARP_BAD &&
-               now - state.bucketEnterTime >= DWELL_MS) {
-      if (!state.fanBuckets[bucketIdx].covered) {
-        state.fanBuckets[bucketIdx].covered = 1;
-        state.qaFrames++;
-      }
-    }
-  }
-
-  function updateWalk() {
-    if (state.motion < MOTION_BAD && state.sharp > SHARP_BAD) state.walkQaFrames++;
-  }
-
-  function renderStation() {
-    const fanDeg = state.protocol.stations[state.stationIdx].fanDeg;
-    const offset = alphaDelta(state.alpha, state.stationStartAlpha);
-    const halfFan = fanDeg / 2;
-
-    // buckets
-    const g = $('fan-buckets').children;
-    for (let i = 0; i < state.fanBuckets.length; i++) {
-      const b = state.fanBuckets[i];
-      let stroke = 'rgba(255,255,255,0.18)';
-      if (b.covered) stroke = '#4dd4ff';
-      else if (i === state.currentBucket) stroke = 'rgba(255,255,255,0.5)';
-      g[i].setAttribute('stroke', stroke);
-      if (b.covered) g[i].style.filter = 'drop-shadow(0 0 4px rgba(77,212,255,0.6))';
-      else g[i].style.filter = '';
-    }
-
-    placeFanCursor(offset, fanDeg);
-
-    // stats
-    $('st-offset').textContent = (offset >= 0 ? '+' : '') + Math.round(offset) + '°';
-    const sharpEl = $('st-sharp');
-    sharpEl.textContent = Math.round(state.sharp);
-    sharpEl.className = 'value mono ' + (state.sharp < SHARP_BAD ? 'bad' : state.sharp < SHARP_OK ? 'warn' : 'ok');
-    const motEl = $('st-motion');
-    motEl.textContent = Math.round(state.motion);
-    motEl.className = 'value mono ' + (state.motion > MOTION_BAD ? 'bad' : state.motion > MOTION_OK ? 'warn' : 'ok');
-
-    // guidance
-    const covered = state.fanBuckets.filter(b => b.covered).length;
-    const pct = Math.round((covered / state.fanBucketCount) * 100);
-    const inFan = Math.abs(offset) <= halfFan;
-    const isLast = state.stationIdx + 1 >= state.protocol.stations.length;
-    const guidance = $('st-guidance');
-    const msg = $('st-msg');
-    const sub = $('st-sub');
-    let cls = '';
-
-    if (state.motion > MOTION_BAD) { cls = 'bad'; msg.textContent = 'Slow down'; sub.textContent = 'pan more slowly to track'; }
-    else if (state.sharp < SHARP_BAD && state.sharp > 0) { cls = 'warn'; msg.textContent = 'Frame is blurry'; sub.textContent = 'steady the camera'; }
-    else if (pct >= 100) {
-      cls = 'ok';
-      msg.textContent = 'Station complete';
-      sub.textContent = isLast ? 'finish capture' : 'continue to next station';
-      $('st-next').textContent = isLast ? 'Finish capture' : 'Next station';
-      $('st-next').classList.remove('hidden');
-    } else if (!inFan) {
-      cls = 'warn';
-      msg.textContent = 'Outside the fan';
-      sub.textContent = `pan back toward center · ${Math.round(offset)}°`;
-    } else if (state.currentBucket >= 0 && !state.fanBuckets[state.currentBucket].covered) {
-      msg.textContent = 'Hold steady';
-      sub.textContent = `${pct}% complete · ${covered}/${state.fanBucketCount} segments`;
-    } else {
-      msg.textContent = 'Sweep to fill the fan';
-      sub.textContent = `${pct}% complete`;
-    }
-    guidance.className = 'guidance ' + cls;
-  }
-
-  function renderWalk() {
-    const target = state.protocol.targetSweep;
-    const rot = state.totalAbsRot;
-    const pct = Math.min(100, Math.round((rot / target) * 100));
-    $('w-fill').style.width = pct + '%';
-    $('w-head').textContent = Math.round(rot) + '°';
-    $('w-steps').textContent = state.steps;
-
-    const dots = $('w-steps-row').children;
-    const stepsCovered = Math.min(state.protocol.minSteps, state.steps);
-    for (let i = 0; i < dots.length; i++) {
-      dots[i].classList.toggle('active', i < stepsCovered);
-    }
-
-    const sharpEl = $('w-sharp');
-    sharpEl.textContent = Math.round(state.sharp);
-    sharpEl.className = 'value mono ' + (state.sharp < SHARP_BAD ? 'bad' : state.sharp < SHARP_OK ? 'warn' : 'ok');
-    const motEl = $('w-motion');
-    motEl.textContent = Math.round(state.motion);
-    motEl.className = 'value mono ' + (state.motion > MOTION_BAD ? 'bad' : state.motion > MOTION_OK ? 'warn' : 'ok');
-
-    const guidance = $('w-guidance');
-    const msg = $('w-msg');
-    let cls = '';
-    if (state.motion > MOTION_BAD) { cls = 'bad'; msg.textContent = 'Slow down'; }
-    else if (state.sharp < SHARP_BAD && state.sharp > 0) { cls = 'warn'; msg.textContent = 'Frame is blurry'; }
-    else if (pct >= 100 && state.steps >= state.protocol.minSteps) {
-      cls = 'ok'; msg.textContent = 'Coverage target reached';
-    } else if (state.steps < 2) {
-      msg.textContent = 'Walk slowly around the room';
-    } else {
-      msg.textContent = `${pct}% perimeter swept`;
-    }
-    guidance.className = 'guidance ' + cls;
-  }
-
-  let lastAnalysis = 0;
-  function loop(t) {
-    if (t - lastAnalysis > 150) { analyzeFrame(); lastAnalysis = t; }
-    if (state.screen === 'station') { updateStation(); renderStation(); }
-    else if (state.screen === 'walk') { updateWalk(); renderWalk(); }
-    requestAnimationFrame(loop);
-  }
-
-  // ============ HANDLERS ============
-  document.querySelectorAll('.card').forEach(card => {
-    card.addEventListener('click', async () => {
-      const errEl = $('select-err');
-      errEl.textContent = '';
-      const motionOk = await requestMotion();
-      const camOk = await startCamera();
-      if (!motionOk && !camOk) {
-        errEl.textContent = '// permission denied for both — open from a non-sandboxed origin';
-        return;
-      }
-      if (!motionOk) errEl.textContent = '// motion denied — coverage tracking unavailable';
-      window.addEventListener('deviceorientation', onOrientation);
-      window.addEventListener('devicemotion', onMotion);
-      startProtocol(card.dataset.proto);
-      requestAnimationFrame(loop);
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.panel;
+      tabs.forEach(t => t.classList.toggle('active', t === tab));
+      panels.forEach(p => p.classList.toggle('active', p.id === `panel-${target}`));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   });
 
-  $('ic-begin').addEventListener('click', beginStation);
-  $('ic-skip').addEventListener('click', () => {
-    state.stationCoverages.push(0);
-    state.stationIdx++;
-    if (state.stationIdx >= state.protocol.stations.length) showComplete();
-    else showInstruction();
-  });
-  $('st-back').addEventListener('click', () => {
-    // go back to instruction for current station
-    showInstruction();
-  });
-  $('st-next').addEventListener('click', advanceStation);
-  $('w-finish').addEventListener('click', showComplete);
-  $('cs-restart').addEventListener('click', () => {
-    state.stationCoverages = [];
-    state.stationIdx = 0;
-    state.qaFrames = 0;
-    state.walkQaFrames = 0;
-    state.totalAbsRot = 0;
-    state.steps = 0;
-    setScreen('screen-select');
-    state.screen = 'select';
+  // Step ↔ station highlighting
+  document.querySelectorAll('.step').forEach(step => {
+    step.addEventListener('click', () => {
+      const stationId = step.dataset.station;
+      const panel = step.closest('.panel');
+
+      // Reset all
+      panel.querySelectorAll('.step').forEach(s => s.classList.remove('highlighted'));
+      panel.querySelectorAll('[data-station]').forEach(el => {
+        if (el.classList.contains('step')) return;
+        el.classList.remove('highlighted-station');
+      });
+      panel.querySelectorAll('.fan-wedge').forEach(f => f.classList.remove('highlighted'));
+
+      // Highlight selected
+      step.classList.add('highlighted');
+      const svg = panel.querySelector('.diagram-svg');
+      const stationGroup = svg.querySelector(`g[data-station="${stationId}"]`);
+      if (stationGroup) {
+        const circle = stationGroup.querySelector('circle');
+        circle.setAttribute('r', parseFloat(circle.getAttribute('r')) + 3);
+        setTimeout(() => circle.setAttribute('r', parseFloat(circle.getAttribute('r')) - 3), 600);
+      }
+      const fan = svg.querySelector(`#fan-${stationId}, #fan-l-${stationId}`);
+      if (fan) fan.classList.add('highlighted');
+    });
   });
 })();
 </script>
