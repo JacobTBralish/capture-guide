@@ -3,318 +3,637 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Space-Synth Capture Guide v0</title>
+<title>Space-Synth Capture</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=B612+Mono:wght@400;700&family=B612:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #050a10;
-    --ink: #e8f4ff;
-    --ink-dim: #6a7a8a;
-    --line: #1a2530;
-    --teal: #00d4ff;
-    --teal-glow: rgba(0, 212, 255, 0.25);
-    --amber: #ffb400;
-    --red: #ff3050;
-    --green: #00ff88;
+    --bg: #0a0a0c;
+    --bg-1: #111114;
+    --surface: rgba(20, 20, 24, 0.72);
+    --surface-solid: #14141a;
+    --ink: #ffffff;
+    --ink-2: rgba(255, 255, 255, 0.7);
+    --ink-3: rgba(255, 255, 255, 0.45);
+    --ink-4: rgba(255, 255, 255, 0.18);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-2: rgba(255, 255, 255, 0.14);
+    --accent: #4dd4ff;
+    --accent-dim: rgba(77, 212, 255, 0.4);
+    --amber: #ffb347;
+    --red: #ff5266;
+    --green: #4ade80;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); font-family: 'B612', system-ui, sans-serif; }
-  body {
-    background-image:
-      repeating-linear-gradient(0deg, transparent 0, transparent 40px, #0a141c 40px, #0a141c 41px),
-      repeating-linear-gradient(90deg, transparent 0, transparent 40px, #0a141c 40px, #0a141c 41px);
+  html, body {
+    height: 100%; overflow: hidden;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Manrope', -apple-system, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
+  /* Camera as base layer */
   .cam-wrap { position: fixed; inset: 0; z-index: 0; background: #000; }
   #video {
     width: 100%; height: 100%; object-fit: cover;
-    filter: contrast(1.05) saturate(0.85) brightness(0.85);
+  }
+  .cam-vignette {
+    position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.45) 0%, transparent 18%, transparent 72%, rgba(0,0,0,0.55) 100%);
   }
   .cam-placeholder {
     width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(180deg, #0a1118, #050a10);
-    color: var(--ink-dim); font-family: 'B612 Mono', monospace; font-size: 11px;
-    letter-spacing: 0.15em; text-transform: uppercase; padding: 24px; text-align: center;
-  }
-
-  .hud {
-    position: fixed; inset: 0; z-index: 2; pointer-events: none;
-    display: flex; flex-direction: column; justify-content: space-between;
-    padding: 16px; padding-top: max(16px, env(safe-area-inset-top));
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
-  }
-
-  .top {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    gap: 12px;
-  }
-  .badge {
-    padding: 6px 10px;
-    background: rgba(5, 10, 16, 0.85);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid var(--line);
-    border-left: 2px solid var(--teal);
-    font-family: 'B612 Mono', monospace;
-    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
-    color: var(--ink); white-space: nowrap;
-  }
-  .badge .v { color: var(--ink-dim); margin-left: 6px; font-weight: 400; }
-  .stats {
-    background: rgba(5, 10, 16, 0.85);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid var(--line);
-    padding: 8px 10px;
-    font-family: 'B612 Mono', monospace;
-    font-size: 10px; letter-spacing: 0.05em; line-height: 1.6;
-    text-align: right;
-    min-width: 110px;
-  }
-  .stats .lbl { color: var(--ink-dim); }
-  .stats .val { color: var(--ink); margin-left: 6px; font-weight: 700; }
-  .stats .val.ok { color: var(--green); }
-  .stats .val.warn { color: var(--amber); }
-  .stats .val.bad { color: var(--red); }
-
-  .center {
-    flex: 1; display: flex; align-items: center; justify-content: center;
-    position: relative;
-  }
-  .ring-wrap {
-    position: relative;
-    width: 280px; height: 280px;
-    max-width: 70vw; max-height: 70vw;
-  }
-  .ring-wrap svg { width: 100%; height: 100%; display: block; }
-  .ring-center {
-    position: absolute; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; text-align: center;
-    pointer-events: none;
-  }
-  .pct {
-    font-family: 'B612 Mono', monospace;
-    font-size: 52px; font-weight: 700; letter-spacing: -0.02em;
-    color: var(--ink); line-height: 1;
-    text-shadow: 0 0 24px var(--teal-glow);
-  }
-  .pct-lbl {
-    font-family: 'B612 Mono', monospace;
-    font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase;
-    color: var(--ink-dim); margin-top: 8px;
-  }
-
-  .status {
-    margin: 0 auto; max-width: 360px; width: 100%;
-    background: rgba(5, 10, 16, 0.92);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid var(--line);
-    border-top: 2px solid var(--teal);
-    padding: 12px 16px;
-    text-align: center;
-    transition: border-top-color 0.3s;
-  }
-  .status.warn { border-top-color: var(--amber); }
-  .status.bad { border-top-color: var(--red); }
-  .status.ok { border-top-color: var(--green); }
-  .status-msg {
-    font-family: 'B612', sans-serif;
-    font-size: 14px; font-weight: 700; color: var(--ink);
-  }
-  .status-sub {
-    font-family: 'B612 Mono', monospace;
-    font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
-    color: var(--ink-dim); margin-top: 4px;
-  }
-
-  .tilt {
-    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
-    width: 24px; height: 180px;
-    background: rgba(5, 10, 16, 0.85);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid var(--line);
-    padding: 3px;
-    display: flex; flex-direction: column; gap: 2px;
-  }
-  .tilt-bucket {
-    flex: 1; background: var(--line); transition: background 0.2s, box-shadow 0.2s;
-  }
-  .tilt-bucket.covered { background: var(--teal); box-shadow: 0 0 8px var(--teal-glow); }
-  .tilt-bucket.active { background: var(--ink); }
-  .tilt-label {
-    position: absolute; right: 30px; font-family: 'B612 Mono', monospace;
-    font-size: 8px; color: var(--ink-dim); letter-spacing: 0.15em;
-  }
-  .tilt-label.up { top: 4px; }
-  .tilt-label.down { bottom: 4px; }
-
-  .start-overlay {
-    position: fixed; inset: 0; z-index: 10;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 32px;
     background: var(--bg);
-    background-image:
-      radial-gradient(circle at 50% 30%, rgba(0, 212, 255, 0.08), transparent 60%),
-      repeating-linear-gradient(0deg, transparent 0, transparent 40px, #0a141c 40px, #0a141c 41px),
-      repeating-linear-gradient(90deg, transparent 0, transparent 40px, #0a141c 40px, #0a141c 41px);
-    text-align: center;
-  }
-  .start-overlay.hidden { display: none; }
-  .logo {
-    font-family: 'B612 Mono', monospace;
-    font-size: 11px; letter-spacing: 0.3em;
-    color: var(--teal); text-transform: uppercase;
-    margin-bottom: 24px;
-  }
-  .title {
-    font-family: 'B612', sans-serif;
-    font-size: 32px; font-weight: 700; line-height: 1.05;
-    color: var(--ink); margin-bottom: 12px; letter-spacing: -0.01em;
-  }
-  .subtitle {
-    font-family: 'B612 Mono', monospace;
-    font-size: 12px; line-height: 1.7; color: var(--ink-dim);
-    max-width: 320px; margin-bottom: 32px;
-  }
-  .start-btn {
-    font-family: 'B612 Mono', monospace;
-    font-size: 13px; font-weight: 700; letter-spacing: 0.2em;
-    text-transform: uppercase;
-    background: var(--teal); color: var(--bg);
-    border: none; padding: 16px 32px; cursor: pointer;
-    box-shadow: 0 0 32px var(--teal-glow);
-    transition: transform 0.15s;
-  }
-  .start-btn:active { transform: scale(0.97); }
-  .perms {
-    margin-top: 24px;
-    font-family: 'B612 Mono', monospace;
-    font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
-    color: var(--ink-dim);
-  }
-  .err {
-    color: var(--red); font-family: 'B612 Mono', monospace;
-    font-size: 10px; max-width: 320px; margin-top: 16px; line-height: 1.5;
+    color: var(--ink-3);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    letter-spacing: 0.15em; padding: 24px; text-align: center;
   }
   #analysis { display: none; }
 
-  @media (max-height: 640px) {
-    .ring-wrap { width: 220px; height: 220px; }
-    .pct { font-size: 42px; }
-    .tilt { height: 140px; }
+  /* Full-screen content surfaces (select, instruction, complete) */
+  .screen {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column;
+    padding: 28px 24px;
+    padding-top: max(28px, env(safe-area-inset-top));
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+    background: var(--bg);
+    overflow-y: auto;
+  }
+  .screen.hidden { display: none; }
+  .screen-bg {
+    position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(77, 212, 255, 0.08), transparent 50%),
+      radial-gradient(ellipse at 100% 100%, rgba(77, 212, 255, 0.04), transparent 50%);
+  }
+
+  /* Typography */
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  h1.display {
+    font-family: 'Manrope', sans-serif;
+    font-size: 34px; font-weight: 800;
+    line-height: 1.05; letter-spacing: -0.025em;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .lede {
+    font-size: 15px; line-height: 1.5;
+    color: var(--ink-2);
+    margin-bottom: 32px;
+  }
+
+  /* Buttons */
+  .btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; padding: 16px 24px;
+    border-radius: 14px;
+    border: none;
+    font-family: 'Manrope', sans-serif;
+    font-size: 15px; font-weight: 600;
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    transition: transform 0.12s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--bg);
+    box-shadow: 0 0 0 1px var(--border-2), 0 12px 32px rgba(77, 212, 255, 0.15);
+  }
+  .btn-primary:active { transform: scale(0.985); background: var(--ink-2); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink-2);
+    border: 1px solid var(--border-2);
+  }
+  .btn-ghost:active { background: rgba(255,255,255,0.05); }
+  .btn + .btn { margin-top: 10px; }
+
+  /* Protocol cards */
+  .card-list {
+    display: flex; flex-direction: column; gap: 10px;
+    margin-top: 8px;
+  }
+  .card {
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.12s;
+  }
+  .card:active { transform: scale(0.99); border-color: var(--accent-dim); }
+  .card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .card-title {
+    font-size: 17px; font-weight: 700; color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .card-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 4px 8px;
+    background: rgba(77, 212, 255, 0.1);
+    border-radius: 6px;
+  }
+  .card-desc {
+    font-size: 13.5px; line-height: 1.5; color: var(--ink-2);
+    margin-bottom: 10px;
+  }
+  .card-spec {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--ink-3);
+    letter-spacing: 0.02em;
+  }
+
+  .err {
+    color: var(--red);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; margin-top: 16px;
+    line-height: 1.5;
+  }
+
+  /* Instruction screen */
+  .ins-content {
+    display: flex; flex-direction: column; flex: 1; justify-content: center;
+    max-width: 440px; margin: 0 auto; width: 100%;
+  }
+  .ins-actions {
+    margin-top: 28px;
+  }
+  .station-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 20px;
+    align-self: flex-start;
+  }
+  .station-chip::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 8px var(--accent);
+  }
+  .ins-fan-spec {
+    display: inline-block;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    color: var(--ink-2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+
+  /* HUD (capture overlay) */
+  .hud {
+    position: fixed; inset: 0; z-index: 5; pointer-events: none;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 14px 16px;
+    padding-top: max(14px, env(safe-area-inset-top));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+  .hud.hidden { display: none; }
+  .hud > * { pointer-events: auto; }
+
+  /* Top status pill */
+  .top-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    width: 100%;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12.5px; font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.45 } }
+  .pill .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--ink-3);
+    font-weight: 500;
+    margin-left: 4px;
+  }
+
+  .stats-strip {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 12px;
+    padding: 8px 12px;
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px; font-weight: 500;
+    color: var(--ink-3);
+  }
+  .stat-item { display: flex; align-items: center; gap: 4px; }
+  .stat-item .label { font-size: 9.5px; color: var(--ink-4); letter-spacing: 0.05em; }
+  .stat-item .value { color: var(--ink-2); }
+  .stat-item .value.ok { color: var(--green); }
+  .stat-item .value.warn { color: var(--amber); }
+  .stat-item .value.bad { color: var(--red); }
+
+  /* Bottom guidance area */
+  .bottom-stack {
+    display: flex; flex-direction: column;
+    width: 100%;
+    gap: 14px;
+  }
+
+  /* Curved fan arc indicator */
+  .fan-viz {
+    width: 100%;
+    display: flex; flex-direction: column; align-items: center;
+    pointer-events: none;
+  }
+  .fan-svg {
+    width: 100%; height: 76px;
+    max-width: 480px;
+    overflow: visible;
+  }
+
+  /* Walk-around progress bar */
+  .walk-viz {
+    width: 100%;
+    display: flex; flex-direction: column; align-items: center;
+    pointer-events: none;
+  }
+  .walk-bar-track {
+    width: 100%; max-width: 480px;
+    height: 8px; border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+    position: relative;
+  }
+  .walk-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #7eecff);
+    border-radius: 999px;
+    width: 0%;
+    transition: width 0.18s;
+    box-shadow: 0 0 16px var(--accent-dim);
+  }
+  .walk-step-row {
+    display: flex; gap: 4px; margin-top: 10px;
+  }
+  .step-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    transition: background 0.15s;
+  }
+  .step-dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent-dim); }
+
+  /* Status text */
+  .guidance {
+    text-align: center;
+    width: 100%; max-width: 440px; margin: 0 auto;
+  }
+  .guidance-msg {
+    font-family: 'Manrope', sans-serif;
+    font-size: 17px; font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+  }
+  .guidance-sub {
+    margin-top: 4px;
+    font-size: 13px; font-weight: 500;
+    color: var(--ink-3);
+  }
+  .guidance.warn .guidance-msg { color: var(--amber); }
+  .guidance.bad .guidance-msg { color: var(--red); }
+  .guidance.ok .guidance-msg { color: var(--green); }
+
+  .action-row {
+    width: 100%; max-width: 440px; margin: 0 auto;
+    display: flex; gap: 10px;
+  }
+  .action-row .btn { padding: 14px 24px; }
+
+  /* Complete screen */
+  .check-wrap {
+    width: 72px; height: 72px; margin: 0 auto 16px;
+    border-radius: 50%;
+    background: rgba(74, 222, 128, 0.12);
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+  }
+  .check-wrap svg { width: 36px; height: 36px; stroke: var(--green); stroke-width: 2.5; fill: none; }
+  .summary-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    max-width: 440px; margin: 28px auto 0;
+  }
+  .stat-card {
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .stat-card-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 26px; font-weight: 700;
+    color: var(--ink);
+    line-height: 1; letter-spacing: -0.02em;
+  }
+  .stat-card-lbl {
+    font-size: 11.5px; color: var(--ink-3); font-weight: 500;
+    margin-top: 8px; letter-spacing: 0;
+  }
+
+  .hidden { display: none !important; }
+
+  @media (max-height: 700px) {
+    h1.display { font-size: 28px; }
+    .lede { font-size: 14px; margin-bottom: 24px; }
+    .card { padding: 14px; }
+    .card-title { font-size: 16px; }
+    .fan-svg { height: 64px; }
   }
 </style>
 </head>
 <body>
 
 <div class="cam-wrap"><video id="video" autoplay playsinline muted></video></div>
+<div class="cam-vignette"></div>
 <canvas id="analysis" width="120" height="68"></canvas>
 
-<div class="hud">
-  <div class="top">
-    <div class="badge">SPACE-SYNTH<span class="v">v0.1</span></div>
-    <div class="stats" id="stats">
-      <div><span class="lbl">HDG</span><span class="val" id="hdg">---°</span></div>
-      <div><span class="lbl">TILT</span><span class="val" id="tilt-v">---°</span></div>
-      <div><span class="lbl">SHARP</span><span class="val" id="sharp">---</span></div>
-      <div><span class="lbl">MOTION</span><span class="val" id="motion">---</span></div>
-    </div>
-  </div>
+<!-- ============ SELECT ============ -->
+<div class="screen" id="screen-select">
+  <div class="screen-bg"></div>
+  <div style="max-width:440px; margin:0 auto; width:100%; flex:1; display:flex; flex-direction:column;">
+    <div class="eyebrow">HP · Spatial Reconstruction</div>
+    <h1 class="display">Capture a room</h1>
+    <p class="lede">Pick a protocol. Each gives different coverage trade-offs for the reconstruction pipeline.</p>
 
-  <div class="center">
-    <div class="ring-wrap">
-      <svg viewBox="-150 -150 300 300">
-        <g id="ring"></g>
-        <circle cx="0" cy="0" r="80" fill="none" stroke="#1a2530" stroke-width="1"/>
-        <circle cx="0" cy="0" r="135" fill="none" stroke="#1a2530" stroke-width="1"/>
-        <line x1="0" y1="-145" x2="0" y2="-130" stroke="#00d4ff" stroke-width="2"/>
-        <text x="0" y="-115" text-anchor="middle" fill="#6a7a8a" font-family="B612 Mono, monospace" font-size="9" letter-spacing="2">START</text>
-      </svg>
-      <div class="ring-center">
-        <div class="pct" id="pct">0%</div>
-        <div class="pct-lbl">coverage</div>
+    <div class="card-list">
+      <div class="card" data-proto="continuous">
+        <div class="card-head">
+          <div class="card-title">Continuous walk</div>
+          <span class="card-tag">1 phase</span>
+        </div>
+        <div class="card-desc">Walk slowly around the perimeter, camera pointed toward the room center. One single capture pass.</div>
+        <div class="card-spec">~360° sweep · step-tracked</div>
+      </div>
+
+      <div class="card" data-proto="fourCorner">
+        <div class="card-head">
+          <div class="card-title">4-corner</div>
+          <span class="card-tag">4 × 90°</span>
+        </div>
+        <div class="card-desc">Stand in each corner facing the diagonal. Sweep a 90° fan to capture both visible walls.</div>
+        <div class="card-spec">4 stations · 90° fan each</div>
+      </div>
+
+      <div class="card" data-proto="eightStation">
+        <div class="card-head">
+          <div class="card-title">8-station hybrid</div>
+          <span class="card-tag">8 × mixed</span>
+        </div>
+        <div class="card-desc">Alternate corners and wall centers. Guided sequence: corner → wall to right → next corner → next wall.</div>
+        <div class="card-spec">8 stations · alternating 90°/180°</div>
       </div>
     </div>
-    <div class="tilt-label up">UP</div>
-    <div class="tilt-label down">DN</div>
-    <div class="tilt">
-      <div class="tilt-bucket"></div>
-      <div class="tilt-bucket"></div>
-      <div class="tilt-bucket"></div>
-      <div class="tilt-bucket"></div>
-      <div class="tilt-bucket"></div>
-    </div>
-  </div>
 
-  <div class="status" id="status">
-    <div class="status-msg" id="status-msg">Pan slowly to map the room</div>
-    <div class="status-sub" id="status-sub">Hold ~0.6s per direction · sweep up & down</div>
+    <div class="err" id="select-err"></div>
   </div>
 </div>
 
-<div class="start-overlay" id="start-overlay">
-  <div class="logo">HP · Spatial Reconstruction</div>
-  <div class="title">Capture Guide</div>
-  <div class="subtitle">
-    In-browser capture guidance prototype.<br>
-    IMU coverage tracking · frame quality · motion gating.<br>
-    No SLAM. No native APIs.
+<!-- ============ INSTRUCTION ============ -->
+<div class="screen hidden" id="screen-instruction">
+  <div class="screen-bg"></div>
+  <div class="ins-content">
+    <div class="station-chip" id="ic-chip">Station 1 of 4</div>
+    <h1 class="display" id="ic-label">Corner 1</h1>
+    <p class="lede" id="ic-instruction">...</p>
+    <div class="ins-fan-spec" id="ic-spec">90° fan · ±45°</div>
+
+    <div class="ins-actions">
+      <button class="btn btn-primary" id="ic-begin">Begin station</button>
+      <button class="btn btn-ghost" id="ic-skip">Skip this station</button>
+    </div>
   </div>
-  <button class="start-btn" id="start-btn">Begin Capture</button>
-  <div class="perms">Requires camera + motion permission</div>
-  <div class="err" id="err"></div>
+</div>
+
+<!-- ============ HUD: STATION ============ -->
+<div class="hud hidden" id="hud-station">
+  <div class="top-row">
+    <div class="pill">
+      <span class="dot"></span>
+      <span id="hud-st-label">Corner 1</span>
+      <span class="count" id="hud-st-count">1/4</span>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="label">OFF</span><span class="value mono" id="st-offset">0°</span></div>
+      <div class="stat-item"><span class="label">SHRP</span><span class="value mono" id="st-sharp">—</span></div>
+      <div class="stat-item"><span class="label">MOT</span><span class="value mono" id="st-motion">—</span></div>
+    </div>
+  </div>
+
+  <div class="bottom-stack">
+    <div class="guidance" id="st-guidance">
+      <div class="guidance-msg" id="st-msg">Sweep the fan</div>
+      <div class="guidance-sub" id="st-sub">pan slowly left and right</div>
+    </div>
+
+    <div class="fan-viz">
+      <svg class="fan-svg" id="fan-svg" viewBox="-240 -30 480 90" preserveAspectRatio="xMidYMid meet">
+        <!-- baseline guide arc (drawn as a path) -->
+        <path id="fan-baseline" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2" stroke-linecap="round"/>
+        <!-- buckets -->
+        <g id="fan-buckets"></g>
+        <!-- start marker (center tick) -->
+        <line x1="0" y1="-4" x2="0" y2="6" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>
+        <!-- cursor -->
+        <g id="fan-cursor" transform="translate(0,0)">
+          <circle cx="0" cy="0" r="5" fill="#4dd4ff"/>
+          <circle cx="0" cy="0" r="9" fill="none" stroke="#4dd4ff" stroke-width="1.5" opacity="0.4"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn-ghost hidden" id="st-back">Back</button>
+      <button class="btn btn-primary hidden" id="st-next">Next station</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ HUD: WALK ============ -->
+<div class="hud hidden" id="hud-walk">
+  <div class="top-row">
+    <div class="pill">
+      <span class="dot"></span>
+      <span>Continuous walk</span>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="label">HΔ</span><span class="value mono" id="w-head">0°</span></div>
+      <div class="stat-item"><span class="label">STEPS</span><span class="value mono" id="w-steps">0</span></div>
+      <div class="stat-item"><span class="label">SHRP</span><span class="value mono" id="w-sharp">—</span></div>
+      <div class="stat-item"><span class="label">MOT</span><span class="value mono" id="w-motion">—</span></div>
+    </div>
+  </div>
+
+  <div class="bottom-stack">
+    <div class="guidance" id="w-guidance">
+      <div class="guidance-msg" id="w-msg">Walk slowly around the room</div>
+      <div class="guidance-sub">camera pointed toward room center</div>
+    </div>
+
+    <div class="walk-viz">
+      <div class="walk-bar-track">
+        <div class="walk-bar-fill" id="w-fill"></div>
+      </div>
+      <div class="walk-step-row" id="w-steps-row"></div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn-primary" id="w-finish">Finish capture</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ COMPLETE ============ -->
+<div class="screen hidden" id="screen-complete">
+  <div class="screen-bg"></div>
+  <div class="ins-content" style="text-align:center; align-items:center;">
+    <div class="check-wrap">
+      <svg viewBox="0 0 24 24"><polyline points="4 12.5 10 18 20 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h1 class="display">Capture complete</h1>
+    <p class="lede" id="cs-proto-name">Protocol</p>
+
+    <div class="summary-grid">
+      <div class="stat-card">
+        <div class="stat-card-val" id="cs-stations">0/0</div>
+        <div class="stat-card-lbl" id="cs-stations-lbl">Stations</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-val" id="cs-coverage">0%</div>
+        <div class="stat-card-lbl">Avg coverage</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-val" id="cs-frames">0</div>
+        <div class="stat-card-lbl">QA-pass ticks</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-val" id="cs-time">0s</div>
+        <div class="stat-card-lbl">Duration</div>
+      </div>
+    </div>
+
+    <div class="ins-actions" style="width:100%;">
+      <button class="btn btn-primary" id="cs-restart">New capture</button>
+    </div>
+  </div>
 </div>
 
 <script>
 (() => {
-  const N_HEADING = 12;
-  const N_TILT = 5;
-  const DWELL_MS = 600;
+  // ============ PROTOCOLS ============
+  const PROTOCOLS = {
+    continuous: {
+      id: 'continuous', name: 'Continuous walk',
+      isWalk: true, targetSweep: 360, minSteps: 12,
+    },
+    fourCorner: {
+      id: 'fourCorner', name: '4-corner',
+      stations: [
+        { label: 'Corner 1', instruction: 'Stand in any corner. Point your camera at the diagonally opposite corner. Sweep ±45° to capture both visible walls.', fanDeg: 90 },
+        { label: 'Corner 2', instruction: 'Walk to the next corner clockwise. Point toward the diagonal. Sweep ±45°.', fanDeg: 90 },
+        { label: 'Corner 3', instruction: 'Walk to the next corner. Same procedure: face the diagonal, sweep ±45°.', fanDeg: 90 },
+        { label: 'Corner 4', instruction: 'Final corner. Face the diagonal and sweep ±45°.', fanDeg: 90 },
+      ],
+    },
+    eightStation: {
+      id: 'eightStation', name: '8-station hybrid',
+      stations: [
+        { label: 'Corner 1', instruction: 'Stand in any corner. Point camera at the diagonally opposite corner. Sweep ±45°.', fanDeg: 90 },
+        { label: 'Wall center 1', instruction: 'Move to the center of the wall on your right. Point camera perpendicular at the opposite wall. Sweep ±90°.', fanDeg: 180 },
+        { label: 'Corner 2', instruction: 'Move to the next corner clockwise. Face the diagonal. Sweep ±45°.', fanDeg: 90 },
+        { label: 'Wall center 2', instruction: 'Move to the next wall center. Face the opposite wall. Sweep ±90°.', fanDeg: 180 },
+        { label: 'Corner 3', instruction: 'Move to the next corner. Face the diagonal. Sweep ±45°.', fanDeg: 90 },
+        { label: 'Wall center 3', instruction: 'Move to the next wall center. Face the opposite wall. Sweep ±90°.', fanDeg: 180 },
+        { label: 'Corner 4', instruction: 'Final corner. Face the diagonal. Sweep ±45°.', fanDeg: 90 },
+        { label: 'Wall center 4', instruction: 'Final wall center. Face the opposite wall. Sweep ±90°.', fanDeg: 180 },
+      ],
+    },
+  };
+
+  // ============ TUNING ============
+  const BUCKET_DEG = 10;
+  const DWELL_MS = 500;
   const MOTION_BAD = 80;
   const MOTION_OK = 30;
   const SHARP_BAD = 80;
   const SHARP_OK = 250;
+  const STEP_ACCEL_THRESHOLD = 1.2;
+  const STEP_MIN_INTERVAL_MS = 320;
 
+  // ============ STATE ============
   const state = {
+    screen: 'select',
+    protocol: null,
+    stationIdx: 0,
+    captureStartTime: 0,
     refAlpha: null,
     alpha: 0, beta: 0,
     motion: 0, sharp: 0,
-    headingBuckets: new Array(N_HEADING).fill(0),
-    tiltBuckets: new Array(N_TILT).fill(0),
-    curH: -1, curT: -1,
-    hEnter: 0, tEnter: 0,
+    stationStartAlpha: 0,
+    fanBuckets: [],
+    fanBucketCount: 0,
+    currentBucket: -1,
+    bucketEnterTime: 0,
+    qaFrames: 0,
+    walkStartAlpha: 0,
+    totalAbsRot: 0,
+    prevAlpha: 0,
+    steps: 0,
+    lastStepTime: 0,
+    walkQaFrames: 0,
+    stationCoverages: [],
   };
 
-  // Build SVG ring segments
-  const ringEl = document.getElementById('ring');
-  const ringSegs = [];
-  for (let i = 0; i < N_HEADING; i++) {
-    const a1 = (i / N_HEADING) * Math.PI * 2 - Math.PI / 2;
-    const a2 = ((i + 1) / N_HEADING) * Math.PI * 2 - Math.PI / 2;
-    const rO = 128, rI = 92;
-    const x1 = Math.cos(a1) * rO, y1 = Math.sin(a1) * rO;
-    const x2 = Math.cos(a2) * rO, y2 = Math.sin(a2) * rO;
-    const x3 = Math.cos(a2) * rI, y3 = Math.sin(a2) * rI;
-    const x4 = Math.cos(a1) * rI, y4 = Math.sin(a1) * rI;
-    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    p.setAttribute('d', `M ${x1} ${y1} A ${rO} ${rO} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${rI} ${rI} 0 0 0 ${x4} ${y4} Z`);
-    p.setAttribute('fill', '#1a2530');
-    p.setAttribute('stroke', '#050a10');
-    p.setAttribute('stroke-width', '2');
-    p.style.transition = 'fill 0.2s';
-    ringEl.appendChild(p);
-    ringSegs.push(p);
-  }
-
-  const tiltEls = Array.from(document.querySelectorAll('.tilt-bucket'));
-  const video = document.getElementById('video');
-  const analysis = document.getElementById('analysis');
+  const $ = (id) => document.getElementById(id);
+  const video = $('video');
+  const analysis = $('analysis');
   const actx = analysis.getContext('2d', { willReadFrequently: true });
 
+  // ============ CAMERA + SENSORS ============
   async function startCamera() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -324,9 +643,9 @@
       video.srcObject = stream;
       await video.play();
       return true;
-    } catch (e) {
-      const camWrap = document.querySelector('.cam-wrap');
-      camWrap.innerHTML = '<div class="cam-placeholder">// camera blocked<br>iframe sandbox or permission denied<br>IMU-only mode active</div>';
+    } catch {
+      document.querySelector('.cam-wrap').innerHTML =
+        '<div class="cam-placeholder">// camera blocked — IMU-only mode</div>';
       return false;
     }
   }
@@ -344,20 +663,50 @@
     return ok;
   }
 
+  function alphaDelta(curr, prev) {
+    let d = curr - prev;
+    if (d > 180) d -= 360;
+    if (d < -180) d += 360;
+    return d;
+  }
+
   function onOrientation(e) {
     if (e.alpha == null) return;
     if (state.refAlpha == null) state.refAlpha = e.alpha;
-    state.alpha = (e.alpha - state.refAlpha + 360) % 360;
+    const a = (e.alpha - state.refAlpha + 360) % 360;
+    if (state.screen === 'walk') {
+      const d = alphaDelta(a, state.prevAlpha);
+      if (Math.abs(d) < 30) state.totalAbsRot += Math.abs(d);
+    }
+    state.prevAlpha = a;
+    state.alpha = a;
     state.beta = e.beta || 0;
   }
 
   function onMotion(e) {
     const r = e.rotationRate;
-    if (!r) return;
-    state.motion = Math.sqrt((r.alpha||0)**2 + (r.beta||0)**2 + (r.gamma||0)**2);
+    if (r) state.motion = Math.sqrt((r.alpha||0)**2 + (r.beta||0)**2 + (r.gamma||0)**2);
+    const a = e.acceleration;
+    if (a && (a.x != null || a.y != null || a.z != null)) {
+      const mag = Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2);
+      maybeStep(mag);
+    } else {
+      const ag = e.accelerationIncludingGravity;
+      if (ag) {
+        const mag = Math.abs(Math.sqrt((ag.x||0)**2 + (ag.y||0)**2 + (ag.z||0)**2) - 9.8);
+        maybeStep(mag);
+      }
+    }
   }
 
-  // Laplacian variance for sharpness
+  function maybeStep(mag) {
+    const now = performance.now();
+    if (mag > STEP_ACCEL_THRESHOLD && now - state.lastStepTime > STEP_MIN_INTERVAL_MS) {
+      state.steps++;
+      state.lastStepTime = now;
+    }
+  }
+
   function analyzeFrame() {
     if (!video.videoWidth) return;
     const w = analysis.width, h = analysis.height;
@@ -379,89 +728,343 @@
     state.sharp = sumSq / n - mean * mean;
   }
 
-  function updateCoverage() {
-    const now = performance.now();
-    const hb = Math.floor((state.alpha / 360) * N_HEADING) % N_HEADING;
-    if (hb !== state.curH) { state.curH = hb; state.hEnter = now; }
-    else if (state.motion < MOTION_BAD && state.sharp > SHARP_BAD && now - state.hEnter >= DWELL_MS) {
-      state.headingBuckets[hb] = 1;
+  // ============ FAN GEOMETRY ============
+  // The fan is drawn as a horizontal arc. We map an offset (degrees from
+  // station start) to a point on a wide, shallow arc curving down at the ends.
+  const FAN_W = 460;   // total visual width
+  const FAN_DEPTH = 32; // how much the arc curves down at the edges
+  const FAN_BAR_Y = 18; // baseline y position
+
+  function offsetToFanPoint(offsetDeg, fanDeg) {
+    // Normalize to -1..+1 across the fan
+    const t = Math.max(-1, Math.min(1, offsetDeg / (fanDeg / 2)));
+    const x = t * (FAN_W / 2);
+    // Parabolic curve: deeper at edges
+    const y = FAN_BAR_Y + (t * t) * FAN_DEPTH;
+    return { x, y };
+  }
+
+  function buildFanBaseline(fanDeg) {
+    const steps = 40;
+    let d = '';
+    for (let i = 0; i <= steps; i++) {
+      const offset = -fanDeg/2 + (i / steps) * fanDeg;
+      const p = offsetToFanPoint(offset, fanDeg);
+      d += (i === 0 ? 'M' : 'L') + ' ' + p.x.toFixed(2) + ' ' + p.y.toFixed(2) + ' ';
     }
-    // Beta on upright phone ranges ~0 (floor) to ~180 (ceiling); clamp & bucketize
-    const betaClamped = Math.max(0, Math.min(180, state.beta));
-    const tn = Math.min(N_TILT - 1, Math.floor((betaClamped / 180) * N_TILT));
-    if (tn !== state.curT) { state.curT = tn; state.tEnter = now; }
-    else if (state.motion < MOTION_BAD && now - state.tEnter >= DWELL_MS) {
-      state.tiltBuckets[tn] = 1;
+    return d;
+  }
+
+  function renderFanBuckets(fanDeg) {
+    const g = $('fan-buckets');
+    g.innerHTML = '';
+    const num = Math.round(fanDeg / BUCKET_DEG);
+    state.fanBuckets = [];
+    state.fanBucketCount = num;
+    for (let i = 0; i < num; i++) {
+      const s = -fanDeg/2 + i * BUCKET_DEG;
+      const e = s + BUCKET_DEG;
+      const pS = offsetToFanPoint(s, fanDeg);
+      const pE = offsetToFanPoint(e, fanDeg);
+      // each bucket = a small segment along the arc, rendered as thick line
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', pS.x.toFixed(2));
+      line.setAttribute('y1', pS.y.toFixed(2));
+      line.setAttribute('x2', pE.x.toFixed(2));
+      line.setAttribute('y2', pE.y.toFixed(2));
+      line.setAttribute('stroke', 'rgba(255,255,255,0.18)');
+      line.setAttribute('stroke-width', '5');
+      line.setAttribute('stroke-linecap', 'round');
+      line.style.transition = 'stroke 0.2s';
+      g.appendChild(line);
+      state.fanBuckets.push({ s, e, covered: 0 });
+    }
+    $('fan-baseline').setAttribute('d', buildFanBaseline(fanDeg));
+  }
+
+  function placeFanCursor(offsetDeg, fanDeg) {
+    const halfFan = fanDeg / 2;
+    const clamped = Math.max(-halfFan - 5, Math.min(halfFan + 5, offsetDeg));
+    const p = offsetToFanPoint(clamped, fanDeg);
+    $('fan-cursor').setAttribute('transform', `translate(${p.x.toFixed(2)},${p.y.toFixed(2)})`);
+    const inFan = Math.abs(offsetDeg) <= halfFan;
+    const cursor = $('fan-cursor');
+    cursor.querySelector('circle:first-child').setAttribute('fill', inFan ? '#4dd4ff' : '#ff5266');
+    cursor.querySelector('circle:nth-child(2)').setAttribute('stroke', inFan ? '#4dd4ff' : '#ff5266');
+  }
+
+  // ============ PROTOCOL FLOW ============
+  function startProtocol(id) {
+    state.protocol = PROTOCOLS[id];
+    state.stationIdx = 0;
+    state.stationCoverages = [];
+    state.qaFrames = 0;
+    state.walkQaFrames = 0;
+    state.captureStartTime = performance.now();
+    if (state.protocol.isWalk) startWalk();
+    else showInstruction();
+  }
+
+  function showInstruction() {
+    state.screen = 'instruction';
+    setScreen('screen-instruction');
+    const st = state.protocol.stations[state.stationIdx];
+    $('ic-chip').textContent = `Station ${state.stationIdx + 1} of ${state.protocol.stations.length}`;
+    $('ic-label').textContent = st.label;
+    $('ic-instruction').textContent = st.instruction;
+    $('ic-spec').textContent = `${st.fanDeg}° fan · ±${st.fanDeg/2}° sweep`;
+  }
+
+  function beginStation() {
+    state.screen = 'station';
+    setScreen('hud-station');
+    const st = state.protocol.stations[state.stationIdx];
+    state.stationStartAlpha = state.alpha;
+    state.currentBucket = -1;
+    state.bucketEnterTime = 0;
+    renderFanBuckets(st.fanDeg);
+    $('hud-st-label').textContent = st.label;
+    $('hud-st-count').textContent = `${state.stationIdx+1}/${state.protocol.stations.length}`;
+    $('st-next').classList.add('hidden');
+    $('st-back').classList.remove('hidden');
+  }
+
+  function advanceStation() {
+    const covered = state.fanBuckets.filter(b => b.covered).length;
+    state.stationCoverages.push(covered / state.fanBucketCount);
+    state.stationIdx++;
+    if (state.stationIdx >= state.protocol.stations.length) showComplete();
+    else showInstruction();
+  }
+
+  function startWalk() {
+    state.screen = 'walk';
+    setScreen('hud-walk');
+    state.walkStartAlpha = state.alpha;
+    state.prevAlpha = state.alpha;
+    state.totalAbsRot = 0;
+    state.steps = 0;
+    state.lastStepTime = 0;
+    state.walkQaFrames = 0;
+    renderWalkSteps();
+  }
+
+  function renderWalkSteps() {
+    const row = $('w-steps-row');
+    row.innerHTML = '';
+    for (let i = 0; i < state.protocol.minSteps; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'step-dot';
+      row.appendChild(dot);
     }
   }
 
-  function render() {
-    for (let i = 0; i < N_HEADING; i++) {
-      let fill = '#1a2530';
-      if (state.headingBuckets[i]) fill = '#00d4ff';
-      if (i === state.curH && !state.headingBuckets[i]) fill = '#3a4d60';
-      ringSegs[i].setAttribute('fill', fill);
-    }
-    tiltEls.forEach((el, idx) => {
-      const ri = N_TILT - 1 - idx; // top of bar = highest tilt (ceiling)
-      el.classList.toggle('covered', !!state.tiltBuckets[ri]);
-      el.classList.toggle('active', ri === state.curT && !state.tiltBuckets[ri]);
-    });
-    const covered = state.headingBuckets.reduce((a,b) => a+b, 0);
-    const pct = Math.round((covered / N_HEADING) * 100);
-    document.getElementById('pct').textContent = pct + '%';
-    document.getElementById('hdg').textContent = Math.round(state.alpha) + '°';
-    document.getElementById('tilt-v').textContent = Math.round(state.beta) + '°';
-
-    const sharpEl = document.getElementById('sharp');
-    sharpEl.textContent = Math.round(state.sharp);
-    sharpEl.className = 'val ' + (state.sharp < SHARP_BAD ? 'bad' : state.sharp < SHARP_OK ? 'warn' : 'ok');
-
-    const motEl = document.getElementById('motion');
-    motEl.textContent = Math.round(state.motion);
-    motEl.className = 'val ' + (state.motion > MOTION_BAD ? 'bad' : state.motion > MOTION_OK ? 'warn' : 'ok');
-
-    const statusEl = document.getElementById('status');
-    const msgEl = document.getElementById('status-msg');
-    const subEl = document.getElementById('status-sub');
-    let cls = '', msg = 'Pan slowly to map the room', sub = 'Hold ~0.6s per direction';
-    if (state.motion > MOTION_BAD) { cls = 'bad'; msg = 'Slow down'; sub = 'too much rotation rate'; }
-    else if (state.sharp < SHARP_BAD && state.sharp > 0) { cls = 'warn'; msg = 'Frame blurry'; sub = 'steady the camera'; }
-    else if (pct >= 100) { cls = 'ok'; msg = 'Full angular coverage ✓'; sub = 'sweep up & down to finish'; }
-    else if (state.curH >= 0 && !state.headingBuckets[state.curH]) {
-      msg = 'Hold here ~0.6s';
-      sub = `sector ${state.curH + 1}/${N_HEADING} · ${pct}% covered`;
+  function showComplete() {
+    state.screen = 'complete';
+    setScreen('screen-complete');
+    $('cs-proto-name').textContent = state.protocol.name + ' protocol';
+    let stationsStr, coverageStr, framesStr, stationsLbl;
+    if (state.protocol.isWalk) {
+      const sweepPct = Math.min(100, Math.round((state.totalAbsRot / state.protocol.targetSweep) * 100));
+      stationsStr = state.steps;
+      stationsLbl = 'Steps';
+      coverageStr = sweepPct + '%';
+      framesStr = state.walkQaFrames;
     } else {
-      msg = 'Pan to an uncovered sector';
-      sub = `${pct}% covered`;
+      stationsStr = state.stationIdx + '/' + state.protocol.stations.length;
+      stationsLbl = 'Stations';
+      const avg = state.stationCoverages.length
+        ? state.stationCoverages.reduce((a,b) => a+b, 0) / state.stationCoverages.length : 0;
+      coverageStr = Math.round(avg * 100) + '%';
+      framesStr = state.qaFrames;
     }
-    statusEl.className = 'status ' + cls;
-    msgEl.textContent = msg;
-    subEl.textContent = sub;
+    const dur = Math.round((performance.now() - state.captureStartTime) / 1000);
+    $('cs-stations').textContent = stationsStr;
+    $('cs-stations-lbl').textContent = stationsLbl;
+    $('cs-coverage').textContent = coverageStr;
+    $('cs-frames').textContent = framesStr;
+    $('cs-time').textContent = dur + 's';
+  }
+
+  function setScreen(id) {
+    ['screen-select', 'screen-instruction', 'screen-complete'].forEach(s => $(s).classList.add('hidden'));
+    ['hud-station', 'hud-walk'].forEach(s => $(s).classList.add('hidden'));
+    $(id).classList.remove('hidden');
+  }
+
+  // ============ UPDATE LOOPS ============
+  function updateStation() {
+    const fanDeg = state.protocol.stations[state.stationIdx].fanDeg;
+    const offset = alphaDelta(state.alpha, state.stationStartAlpha);
+    const halfFan = fanDeg / 2;
+    const now = performance.now();
+    let bucketIdx = -1;
+    if (offset >= -halfFan && offset <= halfFan) {
+      bucketIdx = Math.min(state.fanBucketCount - 1, Math.floor((offset + halfFan) / BUCKET_DEG));
+    }
+    if (bucketIdx !== state.currentBucket) {
+      state.currentBucket = bucketIdx;
+      state.bucketEnterTime = now;
+    } else if (bucketIdx >= 0 &&
+               state.motion < MOTION_BAD &&
+               state.sharp > SHARP_BAD &&
+               now - state.bucketEnterTime >= DWELL_MS) {
+      if (!state.fanBuckets[bucketIdx].covered) {
+        state.fanBuckets[bucketIdx].covered = 1;
+        state.qaFrames++;
+      }
+    }
+  }
+
+  function updateWalk() {
+    if (state.motion < MOTION_BAD && state.sharp > SHARP_BAD) state.walkQaFrames++;
+  }
+
+  function renderStation() {
+    const fanDeg = state.protocol.stations[state.stationIdx].fanDeg;
+    const offset = alphaDelta(state.alpha, state.stationStartAlpha);
+    const halfFan = fanDeg / 2;
+
+    // buckets
+    const g = $('fan-buckets').children;
+    for (let i = 0; i < state.fanBuckets.length; i++) {
+      const b = state.fanBuckets[i];
+      let stroke = 'rgba(255,255,255,0.18)';
+      if (b.covered) stroke = '#4dd4ff';
+      else if (i === state.currentBucket) stroke = 'rgba(255,255,255,0.5)';
+      g[i].setAttribute('stroke', stroke);
+      if (b.covered) g[i].style.filter = 'drop-shadow(0 0 4px rgba(77,212,255,0.6))';
+      else g[i].style.filter = '';
+    }
+
+    placeFanCursor(offset, fanDeg);
+
+    // stats
+    $('st-offset').textContent = (offset >= 0 ? '+' : '') + Math.round(offset) + '°';
+    const sharpEl = $('st-sharp');
+    sharpEl.textContent = Math.round(state.sharp);
+    sharpEl.className = 'value mono ' + (state.sharp < SHARP_BAD ? 'bad' : state.sharp < SHARP_OK ? 'warn' : 'ok');
+    const motEl = $('st-motion');
+    motEl.textContent = Math.round(state.motion);
+    motEl.className = 'value mono ' + (state.motion > MOTION_BAD ? 'bad' : state.motion > MOTION_OK ? 'warn' : 'ok');
+
+    // guidance
+    const covered = state.fanBuckets.filter(b => b.covered).length;
+    const pct = Math.round((covered / state.fanBucketCount) * 100);
+    const inFan = Math.abs(offset) <= halfFan;
+    const isLast = state.stationIdx + 1 >= state.protocol.stations.length;
+    const guidance = $('st-guidance');
+    const msg = $('st-msg');
+    const sub = $('st-sub');
+    let cls = '';
+
+    if (state.motion > MOTION_BAD) { cls = 'bad'; msg.textContent = 'Slow down'; sub.textContent = 'pan more slowly to track'; }
+    else if (state.sharp < SHARP_BAD && state.sharp > 0) { cls = 'warn'; msg.textContent = 'Frame is blurry'; sub.textContent = 'steady the camera'; }
+    else if (pct >= 100) {
+      cls = 'ok';
+      msg.textContent = 'Station complete';
+      sub.textContent = isLast ? 'finish capture' : 'continue to next station';
+      $('st-next').textContent = isLast ? 'Finish capture' : 'Next station';
+      $('st-next').classList.remove('hidden');
+    } else if (!inFan) {
+      cls = 'warn';
+      msg.textContent = 'Outside the fan';
+      sub.textContent = `pan back toward center · ${Math.round(offset)}°`;
+    } else if (state.currentBucket >= 0 && !state.fanBuckets[state.currentBucket].covered) {
+      msg.textContent = 'Hold steady';
+      sub.textContent = `${pct}% complete · ${covered}/${state.fanBucketCount} segments`;
+    } else {
+      msg.textContent = 'Sweep to fill the fan';
+      sub.textContent = `${pct}% complete`;
+    }
+    guidance.className = 'guidance ' + cls;
+  }
+
+  function renderWalk() {
+    const target = state.protocol.targetSweep;
+    const rot = state.totalAbsRot;
+    const pct = Math.min(100, Math.round((rot / target) * 100));
+    $('w-fill').style.width = pct + '%';
+    $('w-head').textContent = Math.round(rot) + '°';
+    $('w-steps').textContent = state.steps;
+
+    const dots = $('w-steps-row').children;
+    const stepsCovered = Math.min(state.protocol.minSteps, state.steps);
+    for (let i = 0; i < dots.length; i++) {
+      dots[i].classList.toggle('active', i < stepsCovered);
+    }
+
+    const sharpEl = $('w-sharp');
+    sharpEl.textContent = Math.round(state.sharp);
+    sharpEl.className = 'value mono ' + (state.sharp < SHARP_BAD ? 'bad' : state.sharp < SHARP_OK ? 'warn' : 'ok');
+    const motEl = $('w-motion');
+    motEl.textContent = Math.round(state.motion);
+    motEl.className = 'value mono ' + (state.motion > MOTION_BAD ? 'bad' : state.motion > MOTION_OK ? 'warn' : 'ok');
+
+    const guidance = $('w-guidance');
+    const msg = $('w-msg');
+    let cls = '';
+    if (state.motion > MOTION_BAD) { cls = 'bad'; msg.textContent = 'Slow down'; }
+    else if (state.sharp < SHARP_BAD && state.sharp > 0) { cls = 'warn'; msg.textContent = 'Frame is blurry'; }
+    else if (pct >= 100 && state.steps >= state.protocol.minSteps) {
+      cls = 'ok'; msg.textContent = 'Coverage target reached';
+    } else if (state.steps < 2) {
+      msg.textContent = 'Walk slowly around the room';
+    } else {
+      msg.textContent = `${pct}% perimeter swept`;
+    }
+    guidance.className = 'guidance ' + cls;
   }
 
   let lastAnalysis = 0;
   function loop(t) {
     if (t - lastAnalysis > 150) { analyzeFrame(); lastAnalysis = t; }
-    updateCoverage();
-    render();
+    if (state.screen === 'station') { updateStation(); renderStation(); }
+    else if (state.screen === 'walk') { updateWalk(); renderWalk(); }
     requestAnimationFrame(loop);
   }
 
-  document.getElementById('start-btn').addEventListener('click', async () => {
-    const errEl = document.getElementById('err');
-    errEl.textContent = '';
-    const motionOk = await requestMotion();
-    const camOk = await startCamera();
-    if (!motionOk && !camOk) {
-      errEl.textContent = '// permission denied for both camera & motion. likely sandboxed iframe — try opening this HTML standalone over https.';
-      return;
-    }
-    if (!motionOk) errEl.textContent = '// motion permission denied — coverage will not advance';
-    window.addEventListener('deviceorientation', onOrientation);
-    window.addEventListener('devicemotion', onMotion);
-    document.getElementById('start-overlay').classList.add('hidden');
-    requestAnimationFrame(loop);
+  // ============ HANDLERS ============
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', async () => {
+      const errEl = $('select-err');
+      errEl.textContent = '';
+      const motionOk = await requestMotion();
+      const camOk = await startCamera();
+      if (!motionOk && !camOk) {
+        errEl.textContent = '// permission denied for both — open from a non-sandboxed origin';
+        return;
+      }
+      if (!motionOk) errEl.textContent = '// motion denied — coverage tracking unavailable';
+      window.addEventListener('deviceorientation', onOrientation);
+      window.addEventListener('devicemotion', onMotion);
+      startProtocol(card.dataset.proto);
+      requestAnimationFrame(loop);
+    });
+  });
+
+  $('ic-begin').addEventListener('click', beginStation);
+  $('ic-skip').addEventListener('click', () => {
+    state.stationCoverages.push(0);
+    state.stationIdx++;
+    if (state.stationIdx >= state.protocol.stations.length) showComplete();
+    else showInstruction();
+  });
+  $('st-back').addEventListener('click', () => {
+    // go back to instruction for current station
+    showInstruction();
+  });
+  $('st-next').addEventListener('click', advanceStation);
+  $('w-finish').addEventListener('click', showComplete);
+  $('cs-restart').addEventListener('click', () => {
+    state.stationCoverages = [];
+    state.stationIdx = 0;
+    state.qaFrames = 0;
+    state.walkQaFrames = 0;
+    state.totalAbsRot = 0;
+    state.steps = 0;
+    setScreen('screen-select');
+    state.screen = 'select';
   });
 })();
 </script>
