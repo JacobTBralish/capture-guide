@@ -4,9 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<title>Space-Synth Capture v0.4</title>
+<title>AR Coverage v0.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -18,13 +16,13 @@
     --ink: #ffffff;
     --ink-2: rgba(255, 255, 255, 0.72);
     --ink-3: rgba(255, 255, 255, 0.48);
-    --ink-4: rgba(255, 255, 255, 0.2);
+    --ink-4: rgba(255, 255, 255, 0.22);
     --border: rgba(255, 255, 255, 0.08);
     --border-2: rgba(255, 255, 255, 0.16);
     --accent: #4dd4ff;
     --accent-glow: rgba(77, 212, 255, 0.35);
-    --amber: #ffb347;
     --red: #ff5266;
+    --amber: #ffb347;
     --green: #4ade80;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -37,24 +35,10 @@
   }
   .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
-  /* Camera */
-  .cam-wrap { position: fixed; inset: 0; z-index: 0; background: #000; }
-  #video { width: 100%; height: 100%; object-fit: cover; }
-  .cam-vignette {
-    position: fixed; inset: 0; z-index: 1; pointer-events: none;
-    background:
-      linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 18%, transparent 50%, rgba(0,0,0,0.7) 100%);
-  }
-  .cam-placeholder {
-    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-    background: var(--bg);
-    color: var(--ink-3);
-    font-family: 'JetBrains Mono', monospace; font-size: 11px;
-    letter-spacing: 0.15em; padding: 24px; text-align: center;
-  }
-  #analysis { display: none; }
+  /* WebGL canvas for AR */
+  #xr-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; }
 
-  /* Full screens (init, complete) */
+  /* Entry screen */
   .screen {
     position: fixed; inset: 0; z-index: 10;
     display: flex; flex-direction: column;
@@ -62,11 +46,14 @@
     padding-top: max(28px, env(safe-area-inset-top));
     padding-bottom: max(28px, env(safe-area-inset-bottom));
     background: var(--bg);
-    background-image:
-      radial-gradient(ellipse at 50% 0%, rgba(77, 212, 255, 0.08), transparent 60%);
+    background-image: radial-gradient(ellipse at 50% 0%, rgba(77, 212, 255, 0.08), transparent 60%);
     overflow-y: auto;
   }
   .screen.hidden { display: none; }
+  .screen-inner {
+    max-width: 460px; margin: 0 auto; width: 100%;
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+  }
 
   .eyebrow {
     font-family: 'JetBrains Mono', monospace;
@@ -77,12 +64,12 @@
   h1.display {
     font-size: 32px; font-weight: 800;
     letter-spacing: -0.025em; line-height: 1.05;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
   }
   .lede {
     font-size: 15px; line-height: 1.5;
     color: var(--ink-2);
-    margin-bottom: 28px;
+    margin-bottom: 24px;
   }
   .build-tag {
     display: inline-block;
@@ -93,34 +80,9 @@
     background: var(--surface-solid);
     border: 1px solid var(--border);
     border-radius: 4px;
-    margin-top: 6px;
+    margin-bottom: 16px;
   }
 
-  /* Cards */
-  .card-list { display: flex; flex-direction: column; gap: 10px; }
-  .card {
-    background: var(--surface-solid);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 18px;
-    cursor: pointer;
-    transition: border-color 0.15s, transform 0.12s;
-  }
-  .card:active { transform: scale(0.99); border-color: var(--accent-glow); }
-  .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .card-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
-  .card-tag {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; font-weight: 500;
-    color: var(--accent);
-    letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 4px 8px;
-    background: rgba(77, 212, 255, 0.1);
-    border-radius: 6px;
-  }
-  .card-desc { font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
-
-  /* Buttons */
   .btn {
     display: flex; align-items: center; justify-content: center;
     width: 100%; padding: 16px 24px;
@@ -135,7 +97,8 @@
     background: var(--ink); color: var(--bg);
     box-shadow: 0 0 0 1px var(--border-2), 0 12px 32px rgba(77, 212, 255, 0.15);
   }
-  .btn-primary:active { transform: scale(0.985); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary:active:not(:disabled) { transform: scale(0.985); }
   .btn-ghost {
     background: transparent; color: var(--ink-2);
     border: 1px solid var(--border-2);
@@ -143,77 +106,219 @@
   .btn-ghost:active { background: rgba(255,255,255,0.05); }
   .btn + .btn { margin-top: 10px; }
 
+  .req-list {
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink-2);
+  }
+  .req-list .item { display: flex; align-items: center; gap: 10px; }
+  .req-list .check { color: var(--green); }
+  .req-list .x { color: var(--red); }
+  .req-list .q { color: var(--amber); }
+
   .err {
     color: var(--red); font-family: 'JetBrains Mono', monospace;
     font-size: 11px; margin-top: 16px; line-height: 1.5;
   }
 
-  /* ============ HUD (in-capture) ============ */
-  .hud {
-    position: fixed; inset: 0; z-index: 5; pointer-events: none;
+  /* DOM overlay (visible during AR session) */
+  #ar-overlay {
+    position: fixed; inset: 0; z-index: 5;
+    pointer-events: none;
     display: flex; flex-direction: column; justify-content: space-between;
-    padding: 14px 16px;
-    padding-top: max(14px, env(safe-area-inset-top));
-    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    padding: 12px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
   }
-  .hud.hidden { display: none; }
-  .hud > * { pointer-events: auto; }
+  #ar-overlay.hidden { display: none; }
+  #ar-overlay > * { pointer-events: auto; }
 
-  /* Top progress strip */
-  .progress-strip {
-    display: flex; align-items: center; gap: 10px;
-    width: 100%;
+  /* Top bar */
+  .top-bar {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .total-badge {
+    flex: 1;
     background: var(--surface);
     -webkit-backdrop-filter: blur(20px) saturate(140%);
     backdrop-filter: blur(20px) saturate(140%);
     border: 1px solid var(--border);
     border-radius: 999px;
     padding: 8px 14px;
+    display: flex; align-items: center; gap: 10px;
   }
-  .progress-dots {
-    display: flex; gap: 5px;
-    flex: 1;
+  .total-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--ink-3);
   }
-  .dot {
+  .total-pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px; font-weight: 700;
+    color: var(--accent);
+  }
+  .total-bar {
     flex: 1;
     height: 5px;
-    background: rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.1);
     border-radius: 999px;
-    transition: background 0.3s;
+    overflow: hidden;
   }
-  .dot.done { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
-  .dot.current {
-    background: rgba(255,255,255,0.45);
-    animation: pulse-dot 1.4s ease-in-out infinite;
+  .total-bar .fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    width: 0%;
+    transition: width 0.3s;
   }
-  @keyframes pulse-dot { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-  .progress-text {
+  .exit-btn {
+    width: 36px; height: 36px;
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .exit-btn svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2.5; fill: none; }
+
+  /* Reticule (center) */
+  .reticule-wrap {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+  .reticule {
+    width: 60px; height: 60px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    opacity: 0.5;
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+  .reticule-label {
+    margin-top: 8px;
+    text-align: center;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; font-weight: 600;
-    color: var(--ink-2);
-    letter-spacing: 0.05em;
-    white-space: nowrap;
+    font-size: 10px;
+    color: var(--accent);
+    background: rgba(0,0,0,0.5);
+    padding: 4px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.08em;
   }
 
-  /* Dev stats toggle (top-right) */
+  /* Bottom panel: per-plane stats + minimap */
+  .bottom-panel {
+    display: flex; gap: 10px;
+    align-items: flex-end;
+  }
+  .stats-card {
+    flex: 1;
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(28px) saturate(140%);
+    backdrop-filter: blur(28px) saturate(140%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 12px 14px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .stats-card .title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 8px;
+  }
+  .stat-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 5px;
+    font-size: 12px;
+  }
+  .stat-row .name {
+    flex: 1;
+    color: var(--ink-2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+  }
+  .stat-row .bar {
+    flex: 2;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .stat-row .bar .fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.25s, background 0.25s;
+  }
+  .stat-row .pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink);
+    font-weight: 700;
+    min-width: 32px;
+    text-align: right;
+  }
+  .stats-empty {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    padding: 12px 0;
+    text-align: center;
+  }
+
+  /* Minimap */
+  .minimap-card {
+    width: 120px;
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(28px) saturate(140%);
+    backdrop-filter: blur(28px) saturate(140%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 10px;
+  }
+  .minimap-card .title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--ink-3);
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  #minimap-canvas {
+    width: 100%; aspect-ratio: 1;
+    display: block;
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+  }
+
+  /* Dev panel */
   .dev-toggle {
-    align-self: flex-end;
+    position: absolute;
+    top: 56px; right: 12px;
     width: 28px; height: 28px;
-    margin-top: 8px;
     background: var(--surface);
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border: 1px solid var(--border);
     border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
     color: var(--ink-3);
+    cursor: pointer;
   }
   .dev-toggle.on { color: var(--accent); border-color: var(--accent-glow); }
-
   .dev-panel {
+    position: absolute;
+    top: 92px; right: 12px;
     background: var(--surface);
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
@@ -224,881 +329,531 @@
     font-size: 10px;
     line-height: 1.7;
     color: var(--ink-3);
-    margin-top: 8px;
     display: none;
+    min-width: 140px;
   }
   .dev-panel.shown { display: block; }
   .dev-row { display: flex; justify-content: space-between; gap: 12px; }
   .dev-row .lbl { color: var(--ink-4); }
   .dev-row .val { color: var(--ink-2); }
-  .dev-row .val.ok { color: var(--green); }
-  .dev-row .val.warn { color: var(--amber); }
-  .dev-row .val.bad { color: var(--red); }
-
-  /* Spacer for center area (camera shows through) */
-  .hud-spacer { flex: 1; }
-
-  /* Bottom guidance card */
-  .guidance-card {
-    background: var(--surface);
-    -webkit-backdrop-filter: blur(28px) saturate(140%);
-    backdrop-filter: blur(28px) saturate(140%);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 18px;
-    max-width: 480px;
-    margin: 0 auto;
-    width: 100%;
-    transition: border-color 0.25s;
-  }
-  .guidance-card.warn { border-color: rgba(255, 179, 71, 0.4); }
-  .guidance-card.bad { border-color: rgba(255, 82, 102, 0.45); }
-  .guidance-card.ok { border-color: rgba(74, 222, 128, 0.45); }
-
-  .guidance-row {
-    display: flex; align-items: center; gap: 14px;
-    margin-bottom: 14px;
-  }
-  .guidance-icon {
-    flex-shrink: 0;
-    width: 44px; height: 44px;
-    border-radius: 12px;
-    background: rgba(77, 212, 255, 0.12);
-    display: flex; align-items: center; justify-content: center;
-    color: var(--accent);
-  }
-  .guidance-icon svg { width: 26px; height: 26px; stroke: currentColor; stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-  .guidance-icon.spinning svg { animation: spin 1.6s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .guidance-card.warn .guidance-icon { background: rgba(255, 179, 71, 0.14); color: var(--amber); }
-  .guidance-card.bad .guidance-icon { background: rgba(255, 82, 102, 0.16); color: var(--red); }
-  .guidance-card.ok .guidance-icon { background: rgba(74, 222, 128, 0.16); color: var(--green); }
-
-  .guidance-text {
-    flex: 1;
-  }
-  .guidance-msg {
-    font-size: 17px; font-weight: 700;
-    line-height: 1.2; letter-spacing: -0.01em;
-    margin-bottom: 3px;
-  }
-  .guidance-sub {
-    font-size: 13px; color: var(--ink-3);
-    line-height: 1.35;
-  }
-
-  /* Capture progress ring */
-  .capture-ring {
-    position: relative;
-    width: 44px; height: 44px;
-    flex-shrink: 0;
-  }
-  .capture-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-  .capture-ring .bg-ring { stroke: rgba(255,255,255,0.1); }
-  .capture-ring .fg-ring {
-    stroke: var(--accent);
-    stroke-linecap: round;
-    transition: stroke-dasharray 0.15s;
-    filter: drop-shadow(0 0 4px var(--accent-glow));
-  }
-
-  /* Mini-map */
-  .minimap {
-    width: 100%;
-    background: rgba(8, 8, 10, 0.55);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 10px 12px;
-    display: flex; align-items: center; gap: 12px;
-  }
-  .minimap-svg {
-    flex-shrink: 0;
-    width: 100px;
-    height: auto;
-  }
-  .minimap-info {
-    flex: 1;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
-    line-height: 1.5;
-    color: var(--ink-3);
-  }
-  .minimap-info .label { color: var(--ink-4); letter-spacing: 0.08em; text-transform: uppercase; font-size: 9px; }
-  .minimap-info .value { color: var(--ink); font-weight: 700; }
-  .minimap-info .remaining {
-    margin-top: 6px;
-    color: var(--accent);
-    font-weight: 700;
-  }
-
-  /* Complete screen */
-  .check-wrap {
-    width: 72px; height: 72px; margin: 0 auto 16px;
-    border-radius: 50%;
-    background: rgba(74, 222, 128, 0.12);
-    display: flex; align-items: center; justify-content: center;
-    border: 1px solid rgba(74, 222, 128, 0.3);
-  }
-  .check-wrap svg { width: 36px; height: 36px; stroke: var(--green); stroke-width: 2.5; fill: none; }
-  .summary-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-    max-width: 440px; margin: 28px auto 0;
-  }
-  .stat-card {
-    background: var(--surface-solid);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px;
-  }
-  .stat-card-val {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 26px; font-weight: 700;
-    line-height: 1; letter-spacing: -0.02em;
-  }
-  .stat-card-lbl {
-    font-size: 11.5px; color: var(--ink-3); margin-top: 8px;
-  }
-
-  .center-text { text-align: center; align-items: center; }
-
-  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 
-<div class="cam-wrap"><video id="video" autoplay playsinline muted></video></div>
-<div class="cam-vignette"></div>
-<canvas id="analysis" width="120" height="68"></canvas>
+<canvas id="xr-canvas"></canvas>
 
-<!-- ============ INIT / PROTOCOL SELECT ============ -->
-<div class="screen" id="screen-init">
-  <div style="max-width:460px; margin:0 auto; width:100%; flex:1; display:flex; flex-direction:column;">
+<!-- ============ ENTRY SCREEN ============ -->
+<div class="screen" id="screen-entry">
+  <div class="screen-inner">
+    <span class="build-tag">BUILD v0.1 · 2026-05-12 · webxr coverage</span>
     <div class="eyebrow">HP · Spatial Reconstruction</div>
-    <h1 class="display">Capture a room</h1>
-    <p class="lede">Pick the room type that matches what you're in. We'll walk you through the rest.</p>
+    <h1 class="display">AR Room Coverage</h1>
+    <p class="lede">
+      Live coverage tracking using WebXR plane detection. Walk around the room — the app marks each
+      wall, floor, and ceiling section as scanned when you look at it. Visualizes coverage in real
+      time so you can ensure full point-cloud coverage before processing.
+    </p>
 
-    <div class="card-list">
-      <div class="card" data-proto="compact">
-        <div class="card-head">
-          <div class="card-title">Small meeting room</div>
-          <span class="card-tag">~1 min</span>
-        </div>
-        <div class="card-desc">Huddle room, small conference room. Up to ~6m on each side. 4 stops at the corners.</div>
-      </div>
-      <div class="card" data-proto="long">
-        <div class="card-head">
-          <div class="card-title">Long boardroom</div>
-          <span class="card-tag">~2 min</span>
-        </div>
-        <div class="card-desc">Conference rooms with a long table. 10–20m on the long axis. 8 stops around the perimeter.</div>
-      </div>
-      <div class="card" data-proto="open">
-        <div class="card-head">
-          <div class="card-title">Large open room</div>
-          <span class="card-tag">~2 min</span>
-        </div>
-        <div class="card-desc">Large boardrooms, training rooms, town-hall spaces. 10m+ on each side. 8 stops on perimeter.</div>
-      </div>
+    <div class="req-list" id="req-list">
+      <div class="item" id="req-webxr"><span class="q">○</span> Checking WebXR support…</div>
+      <div class="item" id="req-ar"><span class="q">○</span> Checking AR session…</div>
+      <div class="item" id="req-plane"><span class="q">○</span> Checking plane detection…</div>
     </div>
 
-    <div class="err" id="select-err"></div>
-    <div style="margin-top:auto; padding-top:24px; text-align:center;">
-      <span class="build-tag">BUILD v0.4 · 2026-05-12 · guided-walk</span>
+    <button class="btn btn-primary" id="start-btn" disabled>Checking capabilities…</button>
+    <div class="err" id="entry-err"></div>
+
+    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 12px; color: var(--ink-3); line-height: 1.6;">
+      <strong style="color: var(--ink-2);">Requirements:</strong> Android Chrome 81+ on an ARCore-supported device.
+      iOS Safari does not support WebXR-AR.
     </div>
   </div>
 </div>
 
-<!-- ============ PREPARE (stand in a corner) ============ -->
-<div class="screen hidden" id="screen-prepare">
-  <div style="max-width:440px; margin:0 auto; width:100%; flex:1; display:flex; flex-direction:column; justify-content:center;">
-    <div class="eyebrow">Step 1 of <span id="prep-total">8</span></div>
-    <h1 class="display">Stand in any corner</h1>
-    <p class="lede">Hold your phone at chest height with the camera pointing into the room — toward the corner diagonally opposite where you're standing. We'll guide you from there.</p>
-
-    <button class="btn btn-primary" id="prep-begin">I'm in a corner — begin</button>
-    <button class="btn btn-ghost" id="prep-back">Back</button>
-  </div>
-</div>
-
-<!-- ============ HUD (during capture) ============ -->
-<div class="hud hidden" id="hud">
-  <div>
-    <div class="progress-strip">
-      <div class="progress-dots" id="progress-dots"></div>
-      <div class="progress-text" id="progress-text">1 of 8</div>
+<!-- ============ AR OVERLAY (during session) ============ -->
+<div id="ar-overlay" class="hidden">
+  <div class="top-bar">
+    <div class="total-badge">
+      <span class="total-label">Coverage</span>
+      <div class="total-bar"><div class="fill" id="total-fill"></div></div>
+      <span class="total-pct" id="total-pct">0%</span>
     </div>
-    <div class="dev-toggle" id="dev-toggle">dev</div>
-    <div class="dev-panel" id="dev-panel">
-      <div class="dev-row"><span class="lbl">HEAD</span><span class="val" id="dev-head">0°</span></div>
-      <div class="dev-row"><span class="lbl">STEPS</span><span class="val" id="dev-steps">0</span></div>
-      <div class="dev-row"><span class="lbl">SHARP</span><span class="val" id="dev-sharp">—</span></div>
-      <div class="dev-row"><span class="lbl">MOTION</span><span class="val" id="dev-motion">—</span></div>
-      <div class="dev-row"><span class="lbl">STATE</span><span class="val" id="dev-state">init</span></div>
+    <div class="exit-btn" id="exit-btn">
+      <svg viewBox="0 0 24 24"><path d="M 6 6 L 18 18 M 18 6 L 6 18" stroke-linecap="round"/></svg>
     </div>
   </div>
 
-  <div class="hud-spacer"></div>
-
-  <div>
-    <div class="guidance-card" id="g-card">
-      <div class="guidance-row">
-        <div class="guidance-icon" id="g-icon">
-          <svg viewBox="0 0 24 24"><polyline points="5 12 19 12"/><polyline points="13 6 19 12 13 18"/></svg>
-        </div>
-        <div class="guidance-text">
-          <div class="guidance-msg" id="g-msg">Walk forward</div>
-          <div class="guidance-sub" id="g-sub">along the wall on your right</div>
-        </div>
-        <div class="capture-ring hidden" id="cap-ring">
-          <svg viewBox="0 0 44 44">
-            <circle class="bg-ring" cx="22" cy="22" r="18" fill="none" stroke-width="3"/>
-            <circle class="fg-ring" cx="22" cy="22" r="18" fill="none" stroke-width="3" stroke-dasharray="0 113"/>
-          </svg>
-        </div>
-      </div>
-
-      <div class="minimap">
-        <svg class="minimap-svg" id="minimap-svg" viewBox="-60 -40 120 80" preserveAspectRatio="xMidYMid meet"></svg>
-        <div class="minimap-info">
-          <div><span class="label">Next:</span> <span class="value" id="mm-next">midwall</span></div>
-          <div><span class="label">Done:</span> <span class="value" id="mm-done">0 / 8</span></div>
-          <div class="remaining" id="mm-remaining">~90s remaining</div>
-        </div>
-      </div>
-    </div>
+  <div class="dev-toggle" id="dev-toggle">dev</div>
+  <div class="dev-panel" id="dev-panel">
+    <div class="dev-row"><span class="lbl">PLANES</span><span class="val" id="dev-planes">0</span></div>
+    <div class="dev-row"><span class="lbl">CELLS</span><span class="val" id="dev-cells">0</span></div>
+    <div class="dev-row"><span class="lbl">FPS</span><span class="val" id="dev-fps">—</span></div>
+    <div class="dev-row"><span class="lbl">POSE</span><span class="val" id="dev-pose">—</span></div>
   </div>
-</div>
 
-<!-- ============ COMPLETE ============ -->
-<div class="screen hidden" id="screen-complete">
-  <div class="center-text" style="max-width:440px; margin:0 auto; width:100%; flex:1; display:flex; flex-direction:column; justify-content:center;">
-    <div class="check-wrap">
-      <svg viewBox="0 0 24 24"><polyline points="4 12.5 10 18 20 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
-    <h1 class="display">Capture complete</h1>
-    <p class="lede" id="cs-proto-name">Long boardroom · 8 stations</p>
+  <div class="reticule-wrap">
+    <div class="reticule"></div>
+    <div class="reticule-label" id="reticule-label">scanning…</div>
+  </div>
 
-    <div class="summary-grid">
-      <div class="stat-card">
-        <div class="stat-card-val" id="cs-stations">8/8</div>
-        <div class="stat-card-lbl">Stations</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-val" id="cs-steps">0</div>
-        <div class="stat-card-lbl">Steps walked</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-val" id="cs-frames">0</div>
-        <div class="stat-card-lbl">Good frames</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-val" id="cs-time">0s</div>
-        <div class="stat-card-lbl">Duration</div>
+  <div class="bottom-panel">
+    <div class="stats-card">
+      <div class="title">Per-surface coverage</div>
+      <div id="stats-list">
+        <div class="stats-empty">Detecting surfaces… aim camera at walls and floor.</div>
       </div>
     </div>
-
-    <div style="margin-top:28px; width:100%;">
-      <button class="btn btn-primary" id="cs-restart">New capture</button>
+    <div class="minimap-card">
+      <div class="title">Top-down</div>
+      <canvas id="minimap-canvas" width="200" height="200"></canvas>
     </div>
   </div>
 </div>
 
 <script>
 (() => {
-  // ============ PROTOCOLS ============
-  // Each station has a type ('corner' or 'midwall') and an expected stepsToHere
-  // (rough estimate of steps from previous station). Used for progress estimation only.
-  const PROTOCOLS = {
-    compact: {
-      id: 'compact', name: 'Small meeting room',
-      stations: [
-        { type: 'corner', stepsToHere: 0 },
-        { type: 'corner', stepsToHere: 8 },
-        { type: 'corner', stepsToHere: 8 },
-        { type: 'corner', stepsToHere: 8 },
-      ],
-    },
-    long: {
-      id: 'long', name: 'Long boardroom',
-      stations: [
-        { type: 'corner',  stepsToHere: 0 },
-        { type: 'midwall', stepsToHere: 7 },
-        { type: 'midwall', stepsToHere: 7 },
-        { type: 'corner',  stepsToHere: 5 },
-        { type: 'corner',  stepsToHere: 5 },
-        { type: 'midwall', stepsToHere: 7 },
-        { type: 'midwall', stepsToHere: 7 },
-        { type: 'corner',  stepsToHere: 5 },
-      ],
-    },
-    open: {
-      id: 'open', name: 'Large open room',
-      stations: [
-        { type: 'corner',  stepsToHere: 0 },
-        { type: 'midwall', stepsToHere: 8 },
-        { type: 'corner',  stepsToHere: 8 },
-        { type: 'midwall', stepsToHere: 8 },
-        { type: 'corner',  stepsToHere: 8 },
-        { type: 'midwall', stepsToHere: 8 },
-        { type: 'corner',  stepsToHere: 8 },
-        { type: 'midwall', stepsToHere: 8 },
-      ],
-    },
-  };
-
   // ============ TUNING ============
-  const MOTION_OK = 30;
-  const MOTION_BAD = 80;
-  const SHARP_BAD = 80;
-  const SHARP_OK = 250;
-  const STEP_ACCEL_THRESHOLD = 1.2;
-  const STEP_MIN_INTERVAL_MS = 320;
-  const CAPTURE_FRAMES_NEEDED = 14;     // good frames at a station to complete
-  const CAPTURE_MIN_MS = 1500;          // minimum dwell time per station
-  const STATION_STABLE_MS = 700;        // hold steady this long to enter capturing
-  const APPROACH_STEPS_REMAINING = 2;   // how many steps before triggering "almost there"
-  const SEC_PER_STEP = 1.1;             // rough time estimate
-  const SEC_PER_STATION = 6;            // rough time estimate
+  const CELL_SIZE_M = 0.20;            // 20cm coverage grid cells
+  const COVERAGE_DIST_MIN = 0.5;       // meters
+  const COVERAGE_DIST_MAX = 5.0;       // meters
+  const COVERAGE_FOV_DEG = 50;         // half-angle from camera forward
+  const COVERAGE_ANGLE_DEG = 65;       // max angle between cell-to-camera and cell normal
+  const MAX_CELLS_PER_PLANE = 800;     // cap to prevent runaway memory
+
+  const COVERAGE_FOV_COS = Math.cos(COVERAGE_FOV_DEG * Math.PI / 180);
+  const COVERAGE_ANGLE_COS = Math.cos(COVERAGE_ANGLE_DEG * Math.PI / 180);
 
   // ============ STATE ============
-  const APP = {
-    INIT: 'init',
-    PREPARE: 'prepare',
-    WALKING: 'walking',
-    APPROACHING: 'approaching',
-    AT_STATION: 'at_station',
-    CAPTURING: 'capturing',
-    STATION_DONE: 'station_done',
-    COMPLETE: 'complete',
-  };
-
   const state = {
-    appState: APP.INIT,
-    protocol: null,
-    stationIdx: 0,                 // 0..N-1: current station being worked on
-    stationsDone: 0,               // count of completed stations
-    captureStartTime: 0,
-    stationEnterTime: 0,
-    captureFrameCount: 0,
-    qaFrames: 0,
-    stableSince: 0,
-
-    // sensors
-    refAlpha: null,
-    alpha: 0, beta: 0,
-    motion: 0,
-    sharp: 0,
-
-    // step tracking
-    totalSteps: 0,
-    stepsSinceStation: 0,
-    lastStepTime: 0,
-
+    xrSession: null,
+    xrRefSpace: null,
+    gl: null,
+    glLayer: null,
+    planeGrids: new Map(),   // XRPlane -> { cells, totalCells, coveredCount, orientation, label, lastSeen }
+    planeCounter: 0,
     devShown: false,
+    fpsCounter: { lastT: 0, frames: 0, fps: 0 },
+    looking: null,           // currently-looked-at plane label
   };
 
   const $ = (id) => document.getElementById(id);
-  const video = $('video');
-  const analysis = $('analysis');
-  const actx = analysis.getContext('2d', { willReadFrequently: true });
 
-  // ============ SENSORS + CAMERA ============
-  async function startCamera() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
-      });
-      video.srcObject = stream;
-      await video.play();
-      return true;
-    } catch {
-      document.querySelector('.cam-wrap').innerHTML =
-        '<div class="cam-placeholder">// camera blocked — IMU-only mode</div>';
+  // ============ CAPABILITY CHECK ============
+  async function checkCaps() {
+    const errEl = $('entry-err');
+    const setItem = (id, ok, text) => {
+      const el = $(id);
+      el.innerHTML = (ok ? '<span class="check">✓</span>' : '<span class="x">✕</span>') + ' ' + text;
+    };
+
+    if (!('xr' in navigator)) {
+      setItem('req-webxr', false, 'WebXR not supported');
+      $('req-ar').innerHTML = '<span class="x">✕</span> Cannot test AR (no WebXR)';
+      $('req-plane').innerHTML = '<span class="x">✕</span> Cannot test plane detection';
+      errEl.textContent = '// WebXR not available. Use Chrome on Android with an ARCore-supported device.';
       return false;
     }
-  }
+    setItem('req-webxr', true, 'WebXR available');
 
-  async function requestMotion() {
-    let ok = true;
-    if (typeof DeviceMotionEvent?.requestPermission === 'function') {
-      try { ok = ok && (await DeviceMotionEvent.requestPermission()) === 'granted'; }
-      catch { ok = false; }
+    let arSupported = false;
+    try {
+      arSupported = await navigator.xr.isSessionSupported('immersive-ar');
+    } catch {}
+    if (!arSupported) {
+      setItem('req-ar', false, 'AR session not supported on this device');
+      $('req-plane').innerHTML = '<span class="x">✕</span> Cannot test plane detection';
+      errEl.textContent = '// Device does not support immersive-ar sessions. Requires ARCore + Chrome 81+.';
+      return false;
     }
-    if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
-      try { ok = ok && (await DeviceOrientationEvent.requestPermission()) === 'granted'; }
-      catch { ok = false; }
+    setItem('req-ar', true, 'AR session supported');
+
+    // Plane detection is a feature requested at session-request time.
+    // No way to test it without trying — assume yes on ARCore devices.
+    setItem('req-plane', true, 'Plane detection (will request at start)');
+
+    return true;
+  }
+
+  // ============ SESSION LIFECYCLE ============
+  async function startAR() {
+    const errEl = $('entry-err');
+    errEl.textContent = '';
+    const canvas = $('xr-canvas');
+    const gl = canvas.getContext('webgl', { xrCompatible: true, alpha: true, antialias: false });
+    if (!gl) {
+      errEl.textContent = '// Failed to obtain WebGL context';
+      return;
     }
-    return ok;
+    state.gl = gl;
+
+    let session;
+    try {
+      session = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['plane-detection', 'local-floor'],
+        optionalFeatures: ['dom-overlay', 'hit-test'],
+        domOverlay: { root: $('ar-overlay') },
+      });
+    } catch (err) {
+      errEl.textContent = '// Failed to start AR: ' + err.message;
+      return;
+    }
+    state.xrSession = session;
+
+    session.addEventListener('end', endAR);
+
+    const glLayer = new XRWebGLLayer(session, gl);
+    state.glLayer = glLayer;
+    await session.updateRenderState({ baseLayer: glLayer });
+
+    state.xrRefSpace = await session.requestReferenceSpace('local-floor').catch(() =>
+      session.requestReferenceSpace('local')
+    );
+
+    $('screen-entry').classList.add('hidden');
+    $('ar-overlay').classList.remove('hidden');
+
+    session.requestAnimationFrame(onXRFrame);
   }
 
-  function onOrientation(e) {
-    if (e.alpha == null) return;
-    if (state.refAlpha == null) state.refAlpha = e.alpha;
-    state.alpha = (e.alpha - state.refAlpha + 360) % 360;
-    state.beta = e.beta || 0;
+  function endAR() {
+    if (state.xrSession) {
+      try { state.xrSession.end(); } catch {}
+    }
+    state.xrSession = null;
+    state.planeGrids.clear();
+    state.planeCounter = 0;
+    $('screen-entry').classList.remove('hidden');
+    $('ar-overlay').classList.add('hidden');
+    $('stats-list').innerHTML = '<div class="stats-empty">Detecting surfaces… aim camera at walls and floor.</div>';
+    $('total-fill').style.width = '0%';
+    $('total-pct').textContent = '0%';
   }
 
-  function onMotion(e) {
-    const r = e.rotationRate;
-    if (r) state.motion = Math.sqrt((r.alpha||0)**2 + (r.beta||0)**2 + (r.gamma||0)**2);
-    const a = e.acceleration;
-    if (a && (a.x != null || a.y != null || a.z != null)) {
-      const mag = Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2);
-      maybeStep(mag);
-    } else {
-      const ag = e.accelerationIncludingGravity;
-      if (ag) {
-        const mag = Math.abs(Math.sqrt((ag.x||0)**2 + (ag.y||0)**2 + (ag.z||0)**2) - 9.8);
-        maybeStep(mag);
+  // ============ FRAME LOOP ============
+  function onXRFrame(t, frame) {
+    const session = frame.session;
+    if (!session) return;
+    session.requestAnimationFrame(onXRFrame);
+
+    const gl = state.gl;
+    const glLayer = state.glLayer;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, glLayer.framebuffer);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    const pose = frame.getViewerPose(state.xrRefSpace);
+    if (!pose) return;
+
+    // FPS
+    state.fpsCounter.frames++;
+    if (t - state.fpsCounter.lastT > 500) {
+      state.fpsCounter.fps = Math.round(state.fpsCounter.frames * 1000 / (t - state.fpsCounter.lastT));
+      state.fpsCounter.frames = 0;
+      state.fpsCounter.lastT = t;
+    }
+
+    // Camera position + forward in reference space
+    const m = pose.transform.matrix;
+    const camPos = { x: m[12], y: m[13], z: m[14] };
+    // Camera forward = -Z column of pose matrix (column-major: rows 8,9,10 with negation)
+    const camFwd = { x: -m[8], y: -m[9], z: -m[10] };
+
+    // Process detected planes
+    const detected = frame.detectedPlanes;
+    if (detected) {
+      updatePlaneGrids(frame, detected, camPos, camFwd);
+    }
+
+    // Update UI overlay
+    updateOverlay(camPos, camFwd);
+  }
+
+  // ============ PLANE COVERAGE TRACKING ============
+  function updatePlaneGrids(frame, detectedPlanes, camPos, camFwd) {
+    // Add new planes
+    detectedPlanes.forEach(plane => {
+      if (!state.planeGrids.has(plane)) {
+        const grid = createPlaneGrid(plane);
+        if (grid) state.planeGrids.set(plane, grid);
+      }
+    });
+
+    // Remove planes that disappeared
+    const currentPlaneSet = new Set();
+    detectedPlanes.forEach(p => currentPlaneSet.add(p));
+    for (const [plane, grid] of state.planeGrids) {
+      if (!currentPlaneSet.has(plane)) state.planeGrids.delete(plane);
+    }
+
+    // Update coverage for each plane
+    state.looking = null;
+    let closestLookingDist = Infinity;
+    for (const [plane, grid] of state.planeGrids) {
+      const planePose = frame.getPose(plane.planeSpace, state.xrRefSpace);
+      if (!planePose) continue;
+      const planeM = planePose.transform.matrix;
+      // Plane normal: +Y column of plane matrix (planes are XZ plane in their local space; normal is +Y)
+      const normal = { x: planeM[4], y: planeM[5], z: planeM[6] };
+
+      let newlyCovered = 0;
+      for (const cell of grid.cells) {
+        if (cell.covered) continue;
+
+        // Compute cell center in world (reference) space
+        const cellLocal = cell.local; // (x, z) in plane local
+        const wx = planeM[0]*cellLocal.x + planeM[8]*cellLocal.z + planeM[12];
+        const wy = planeM[1]*cellLocal.x + planeM[9]*cellLocal.z + planeM[13];
+        const wz = planeM[2]*cellLocal.x + planeM[10]*cellLocal.z + planeM[14];
+
+        // Vector cell -> camera
+        const cx = camPos.x - wx;
+        const cy = camPos.y - wy;
+        const cz = camPos.z - wz;
+        const dist2 = cx*cx + cy*cy + cz*cz;
+        if (dist2 < COVERAGE_DIST_MIN*COVERAGE_DIST_MIN || dist2 > COVERAGE_DIST_MAX*COVERAGE_DIST_MAX) continue;
+        const dist = Math.sqrt(dist2);
+        const invDist = 1/dist;
+        const cnx = cx*invDist, cny = cy*invDist, cnz = cz*invDist;
+
+        // FOV check: is cell in front of camera within FOV?
+        // Camera forward dot (cell->camera negated) > cos(FOV)
+        // (cell is in front: dot product of camera_forward and camera_to_cell should be positive and large)
+        const camToCellDot = -(cnx*camFwd.x + cny*camFwd.y + cnz*camFwd.z);
+        if (camToCellDot < COVERAGE_FOV_COS) continue;
+
+        // Angle check: is cell facing camera?
+        // normal dot (cell->camera) should be positive (cell visible from camera side)
+        const normalDot = cnx*normal.x + cny*normal.y + cnz*normal.z;
+        if (normalDot < COVERAGE_ANGLE_COS) continue;
+
+        cell.covered = true;
+        grid.coveredCount++;
+        newlyCovered++;
+      }
+
+      // Track which plane camera is looking at (closest plane the camera ray hits)
+      const planePos = { x: planeM[12], y: planeM[13], z: planeM[14] };
+      const dpx = planePos.x - camPos.x, dpy = planePos.y - camPos.y, dpz = planePos.z - camPos.z;
+      const distPlane = Math.sqrt(dpx*dpx + dpy*dpy + dpz*dpz);
+      const fwdDot = dpx*camFwd.x + dpy*camFwd.y + dpz*camFwd.z;
+      const angle = fwdDot / distPlane;
+      if (angle > 0.85 && distPlane < closestLookingDist && distPlane < 8) {
+        closestLookingDist = distPlane;
+        state.looking = grid.label;
+      }
+
+      grid.lastSeen = performance.now();
+    }
+  }
+
+  function createPlaneGrid(plane) {
+    if (!plane.polygon || plane.polygon.length < 3) return null;
+
+    // Bounding box in plane local space (x, z)
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const p of plane.polygon) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.z < minZ) minZ = p.z;
+      if (p.z > maxZ) maxZ = p.z;
+    }
+    const width = maxX - minX;
+    const depth = maxZ - minZ;
+    if (width < 0.3 || depth < 0.3) return null;
+
+    // Build cell grid
+    const cells = [];
+    const cellsX = Math.max(1, Math.ceil(width / CELL_SIZE_M));
+    const cellsZ = Math.max(1, Math.ceil(depth / CELL_SIZE_M));
+    let total = cellsX * cellsZ;
+    // Adaptive cell size if too many cells
+    let cellSize = CELL_SIZE_M;
+    if (total > MAX_CELLS_PER_PLANE) {
+      const scale = Math.sqrt(total / MAX_CELLS_PER_PLANE);
+      cellSize = CELL_SIZE_M * scale;
+    }
+    const adjCellsX = Math.max(1, Math.ceil(width / cellSize));
+    const adjCellsZ = Math.max(1, Math.ceil(depth / cellSize));
+
+    for (let ix = 0; ix < adjCellsX; ix++) {
+      for (let iz = 0; iz < adjCellsZ; iz++) {
+        const cx = minX + (ix + 0.5) * cellSize;
+        const cz = minZ + (iz + 0.5) * cellSize;
+        cells.push({ local: { x: cx, z: cz }, covered: false });
       }
     }
+
+    // Label by orientation + index
+    state.planeCounter++;
+    const orientation = plane.orientation || 'unknown'; // 'horizontal' | 'vertical'
+    let label;
+    if (orientation === 'horizontal') {
+      label = `Surface ${state.planeCounter} (floor/ceiling)`;
+    } else if (orientation === 'vertical') {
+      label = `Wall ${state.planeCounter}`;
+    } else {
+      label = `Plane ${state.planeCounter}`;
+    }
+
+    return {
+      cells,
+      totalCells: cells.length,
+      coveredCount: 0,
+      orientation,
+      label,
+      bbox: { minX, maxX, minZ, maxZ, width, depth },
+      lastSeen: performance.now(),
+    };
   }
 
-  function maybeStep(mag) {
+  // ============ UI OVERLAY ============
+  let lastOverlayUpdate = 0;
+  function updateOverlay(camPos, camFwd) {
     const now = performance.now();
-    if (mag > STEP_ACCEL_THRESHOLD && now - state.lastStepTime > STEP_MIN_INTERVAL_MS) {
-      state.totalSteps++;
-      state.stepsSinceStation++;
-      state.lastStepTime = now;
+    if (now - lastOverlayUpdate < 100) return; // throttle to ~10 Hz
+    lastOverlayUpdate = now;
+
+    let totalCells = 0, totalCovered = 0;
+    for (const grid of state.planeGrids.values()) {
+      totalCells += grid.totalCells;
+      totalCovered += grid.coveredCount;
     }
-  }
+    const totalPct = totalCells === 0 ? 0 : Math.round(totalCovered * 100 / totalCells);
+    $('total-pct').textContent = totalPct + '%';
+    $('total-fill').style.width = totalPct + '%';
 
-  function analyzeFrame() {
-    if (!video.videoWidth) return;
-    const w = analysis.width, h = analysis.height;
-    actx.drawImage(video, 0, 0, w, h);
-    const d = actx.getImageData(0, 0, w, h).data;
-    const gray = new Float32Array(w * h);
-    for (let i = 0, j = 0; i < d.length; i += 4, j++) {
-      gray[j] = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-    }
-    let sum = 0, sumSq = 0, n = 0;
-    for (let y = 1; y < h - 1; y++) {
-      for (let x = 1; x < w - 1; x++) {
-        const i = y * w + x;
-        const lap = -4 * gray[i] + gray[i-1] + gray[i+1] + gray[i-w] + gray[i+w];
-        sum += lap; sumSq += lap * lap; n++;
-      }
-    }
-    const mean = sum / n;
-    state.sharp = sumSq / n - mean * mean;
-  }
-
-  // ============ MINIMAP RENDERING ============
-  function renderMinimapForProtocol(protocol) {
-    const svg = $('minimap-svg');
-    svg.innerHTML = '';
-    let stations, viewBox, roomRect;
-
-    if (protocol.id === 'compact') {
-      viewBox = '-50 -50 100 100';
-      roomRect = { x: -38, y: -38, w: 76, h: 76 };
-      // Corner positions
-      stations = [
-        { x: -38, y: -38 }, { x: 38, y: -38 },
-        { x: 38, y: 38 }, { x: -38, y: 38 },
-      ];
-    } else if (protocol.id === 'long') {
-      viewBox = '-60 -28 120 56';
-      roomRect = { x: -52, y: -20, w: 104, h: 40 };
-      stations = [
-        { x: -52, y: -20 }, { x: -17, y: -20 }, { x: 17, y: -20 }, { x: 52, y: -20 },
-        { x: 52, y: 20 }, { x: 17, y: 20 }, { x: -17, y: 20 }, { x: -52, y: 20 },
-      ];
-    } else { // open
-      viewBox = '-50 -50 100 100';
-      roomRect = { x: -40, y: -40, w: 80, h: 80 };
-      stations = [
-        { x: -40, y: -40 }, { x: 0, y: -40 }, { x: 40, y: -40 },
-        { x: 40, y: 0 }, { x: 40, y: 40 }, { x: 0, y: 40 },
-        { x: -40, y: 40 }, { x: -40, y: 0 },
-      ];
-    }
-
-    svg.setAttribute('viewBox', viewBox);
-
-    // Room outline
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', roomRect.x);
-    rect.setAttribute('y', roomRect.y);
-    rect.setAttribute('width', roomRect.w);
-    rect.setAttribute('height', roomRect.h);
-    rect.setAttribute('fill', 'rgba(255,255,255,0.025)');
-    rect.setAttribute('stroke', 'rgba(255,255,255,0.25)');
-    rect.setAttribute('stroke-width', '1.2');
-    svg.appendChild(rect);
-
-    // Furniture hint (small central rect)
-    if (protocol.id === 'long') {
-      const t = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      t.setAttribute('x', -36); t.setAttribute('y', -8);
-      t.setAttribute('width', 72); t.setAttribute('height', 16);
-      t.setAttribute('rx', 2);
-      t.setAttribute('fill', 'rgba(255,255,255,0.04)');
-      t.setAttribute('stroke', 'rgba(255,255,255,0.15)');
-      t.setAttribute('stroke-width', '0.8');
-      svg.appendChild(t);
-    } else if (protocol.id === 'open') {
-      const t = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      t.setAttribute('x', -18); t.setAttribute('y', -10);
-      t.setAttribute('width', 36); t.setAttribute('height', 20);
-      t.setAttribute('rx', 2);
-      t.setAttribute('fill', 'rgba(255,255,255,0.04)');
-      t.setAttribute('stroke', 'rgba(255,255,255,0.15)');
-      t.setAttribute('stroke-width', '0.8');
-      svg.appendChild(t);
+    // Stats list
+    const statsList = $('stats-list');
+    if (state.planeGrids.size === 0) {
+      statsList.innerHTML = '<div class="stats-empty">Detecting surfaces… aim camera at walls and floor.</div>';
     } else {
-      const t = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      t.setAttribute('x', -14); t.setAttribute('y', -8);
-      t.setAttribute('width', 28); t.setAttribute('height', 16);
-      t.setAttribute('rx', 2);
-      t.setAttribute('fill', 'rgba(255,255,255,0.04)');
-      t.setAttribute('stroke', 'rgba(255,255,255,0.15)');
-      t.setAttribute('stroke-width', '0.8');
-      svg.appendChild(t);
+      const rows = [];
+      // Sort by label
+      const grids = [...state.planeGrids.values()].sort((a, b) => a.label.localeCompare(b.label));
+      for (const grid of grids) {
+        const pct = grid.totalCells === 0 ? 0 : Math.round(grid.coveredCount * 100 / grid.totalCells);
+        const color = pct >= 80 ? '#4ade80' : pct >= 40 ? '#ffb347' : '#ff5266';
+        rows.push(`
+          <div class="stat-row">
+            <span class="name">${escapeHtml(grid.label)}</span>
+            <div class="bar"><div class="fill" style="width:${pct}%; background:${color}"></div></div>
+            <span class="pct">${pct}%</span>
+          </div>
+        `);
+      }
+      statsList.innerHTML = rows.join('');
     }
 
-    // Walking path (connect stations in order, slightly inset)
-    let pathD = '';
-    stations.forEach((s, i) => {
-      const inset = insetTowardCenter(s, roomRect, 5);
-      pathD += (i === 0 ? 'M' : 'L') + ' ' + inset.x + ' ' + inset.y + ' ';
-    });
-    pathD += 'Z';
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', pathD);
-    path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', 'rgba(255,255,255,0.18)');
-    path.setAttribute('stroke-width', '0.7');
-    path.setAttribute('stroke-dasharray', '2 2');
-    svg.appendChild(path);
-
-    // Station dots
-    state.stationDots = [];
-    stations.forEach((s, i) => {
-      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      c.setAttribute('cx', s.x);
-      c.setAttribute('cy', s.y);
-      c.setAttribute('r', 3);
-      c.setAttribute('fill', 'rgba(255,255,255,0.18)');
-      c.setAttribute('stroke', 'rgba(255,255,255,0.35)');
-      c.setAttribute('stroke-width', '0.8');
-      c.dataset.idx = i;
-      svg.appendChild(c);
-      state.stationDots.push({ el: c, pos: s });
-    });
-  }
-
-  function insetTowardCenter(p, rect, inset) {
-    const cx = rect.x + rect.w / 2;
-    const cy = rect.y + rect.h / 2;
-    const dx = cx - p.x;
-    const dy = cy - p.y;
-    const len = Math.hypot(dx, dy);
-    if (len < 0.001) return p;
-    return { x: p.x + (dx / len) * inset, y: p.y + (dy / len) * inset };
-  }
-
-  function updateMinimap() {
-    state.stationDots?.forEach((sd, i) => {
-      let fill = 'rgba(255,255,255,0.18)';
-      let stroke = 'rgba(255,255,255,0.35)';
-      let r = '3';
-      let glow = '';
-      if (i < state.stationsDone) {
-        fill = '#4dd4ff';
-        stroke = '#4dd4ff';
-        glow = 'drop-shadow(0 0 2px rgba(77, 212, 255, 0.7))';
-      } else if (i === state.stationIdx) {
-        fill = 'rgba(77, 212, 255, 0.4)';
-        stroke = '#4dd4ff';
-        r = '4';
-      }
-      sd.el.setAttribute('fill', fill);
-      sd.el.setAttribute('stroke', stroke);
-      sd.el.setAttribute('r', r);
-      sd.el.style.filter = glow;
-    });
-  }
-
-  // ============ STATE MACHINE ============
-  function transition(newState) {
-    state.appState = newState;
-    if (newState === APP.AT_STATION) {
-      state.stationEnterTime = performance.now();
-      state.stableSince = 0;
-      state.captureFrameCount = 0;
-    } else if (newState === APP.CAPTURING) {
-      state.captureFrameCount = 0;
-    } else if (newState === APP.STATION_DONE) {
-      // mark station done and advance
-      state.stationsDone++;
-      state.stationIdx++;
-      state.stepsSinceStation = 0;
-      if (state.stationIdx >= state.protocol.stations.length) {
-        setTimeout(() => transition(APP.COMPLETE), 700);
-      } else {
-        setTimeout(() => transition(APP.WALKING), 700);
-      }
-    } else if (newState === APP.COMPLETE) {
-      showComplete();
-    }
-  }
-
-  function startProtocol(id) {
-    state.protocol = PROTOCOLS[id];
-    state.stationIdx = 0;
-    state.stationsDone = 0;
-    state.totalSteps = 0;
-    state.stepsSinceStation = 0;
-    state.qaFrames = 0;
-    state.captureStartTime = 0;
-    renderMinimapForProtocol(state.protocol);
-    buildProgressDots(state.protocol.stations.length);
-    setScreen('screen-prepare');
-    $('prep-total').textContent = state.protocol.stations.length;
-  }
-
-  function beginCapture() {
-    setScreen('hud');
-    state.captureStartTime = performance.now();
-    // First station is at the user's starting corner; go directly to AT_STATION
-    transition(APP.AT_STATION);
-    requestAnimationFrame(loop);
-  }
-
-  function showComplete() {
-    setScreen('screen-complete');
-    $('cs-proto-name').textContent = state.protocol.name + ' · ' + state.protocol.stations.length + ' stations';
-    $('cs-stations').textContent = `${state.stationsDone}/${state.protocol.stations.length}`;
-    $('cs-steps').textContent = state.totalSteps;
-    $('cs-frames').textContent = state.qaFrames;
-    const dur = Math.round((performance.now() - state.captureStartTime) / 1000);
-    $('cs-time').textContent = dur + 's';
-  }
-
-  function setScreen(id) {
-    ['screen-init', 'screen-prepare', 'screen-complete'].forEach(s => $(s).classList.add('hidden'));
-    $('hud').classList.add('hidden');
-    $(id).classList.remove('hidden');
-  }
-
-  function buildProgressDots(n) {
-    const c = $('progress-dots');
-    c.innerHTML = '';
-    for (let i = 0; i < n; i++) {
-      const d = document.createElement('div');
-      d.className = 'dot';
-      c.appendChild(d);
-    }
-  }
-
-  function updateProgressDots() {
-    const dots = $('progress-dots').children;
-    for (let i = 0; i < dots.length; i++) {
-      dots[i].classList.toggle('done', i < state.stationsDone);
-      dots[i].classList.toggle('current', i === state.stationIdx && state.appState !== APP.COMPLETE);
-    }
-  }
-
-  // ============ UPDATE LOGIC ============
-  function tick(t) {
-    const station = state.protocol?.stations[state.stationIdx];
-    if (!station) return;
-
-    if (state.appState === APP.WALKING) {
-      // Estimate remaining steps to next station
-      const stepsRemaining = station.stepsToHere - state.stepsSinceStation;
-      if (stepsRemaining <= APPROACH_STEPS_REMAINING && stepsRemaining > 0) {
-        transition(APP.APPROACHING);
-      } else if (state.stepsSinceStation >= station.stepsToHere) {
-        transition(APP.AT_STATION);
-      }
-    } else if (state.appState === APP.APPROACHING) {
-      if (state.stepsSinceStation >= station.stepsToHere) {
-        transition(APP.AT_STATION);
-      }
-    } else if (state.appState === APP.AT_STATION) {
-      // Wait for user to be stable: low motion + good sharpness for STATION_STABLE_MS
-      const stable = state.motion < MOTION_OK && state.sharp > SHARP_BAD;
-      if (stable) {
-        if (state.stableSince === 0) state.stableSince = t;
-        if (t - state.stableSince > STATION_STABLE_MS) {
-          transition(APP.CAPTURING);
-        }
-      } else {
-        state.stableSince = 0;
-      }
-    } else if (state.appState === APP.CAPTURING) {
-      // Accumulate good frames while motion stays low and sharp stays high
-      if (state.motion < MOTION_BAD && state.sharp > SHARP_BAD) {
-        state.captureFrameCount++;
-        state.qaFrames++;
-      }
-      const enoughFrames = state.captureFrameCount >= CAPTURE_FRAMES_NEEDED;
-      const enoughTime = t - state.stationEnterTime > CAPTURE_MIN_MS;
-      if (enoughFrames && enoughTime) {
-        transition(APP.STATION_DONE);
-      }
-    }
-  }
-
-  // ============ RENDER ============
-  function renderHUD() {
-    if (state.appState === APP.COMPLETE) return;
-
-    updateProgressDots();
-    updateMinimap();
-
-    const station = state.protocol.stations[state.stationIdx];
-    $('progress-text').textContent = `${state.stationIdx + 1} of ${state.protocol.stations.length}`;
-
-    // Compute remaining time estimate
-    const stationsLeft = state.protocol.stations.length - state.stationsDone;
-    let stepsLeft = 0;
-    for (let i = state.stationIdx + 1; i < state.protocol.stations.length; i++) {
-      stepsLeft += state.protocol.stations[i].stepsToHere;
-    }
-    if (state.appState === APP.WALKING || state.appState === APP.APPROACHING) {
-      stepsLeft += Math.max(0, station.stepsToHere - state.stepsSinceStation);
-    }
-    const secLeft = Math.round(stationsLeft * SEC_PER_STATION + stepsLeft * SEC_PER_STEP);
-    $('mm-remaining').textContent = secLeft > 60
-      ? `~${Math.round(secLeft/60)}m ${secLeft%60}s remaining`
-      : `~${secLeft}s remaining`;
-    $('mm-done').textContent = `${state.stationsDone} / ${state.protocol.stations.length}`;
-    $('mm-next').textContent = station.type === 'corner' ? 'corner stop' : 'wall stop';
-
-    // Guidance + icon + status
-    const card = $('g-card');
-    const msg = $('g-msg');
-    const sub = $('g-sub');
-    const icon = $('g-icon');
-    const ring = $('cap-ring');
-    let cls = '';
-
-    ring.classList.add('hidden');
-    icon.classList.remove('spinning', 'hidden');
-
-    if (state.appState === APP.WALKING) {
-      setIcon(icon, 'arrow');
-      msg.textContent = 'Walk forward';
-      sub.textContent = station.type === 'corner'
-        ? 'along this wall, toward the next corner'
-        : 'slowly, along the wall on your right';
-    } else if (state.appState === APP.APPROACHING) {
-      setIcon(icon, 'arrow');
-      msg.textContent = 'Almost there…';
-      const stepsLeft = Math.max(0, station.stepsToHere - state.stepsSinceStation);
-      sub.textContent = stepsLeft > 0 ? `${stepsLeft} more steps` : 'stop now';
-    } else if (state.appState === APP.AT_STATION) {
-      setIcon(icon, 'eye');
-      if (station.type === 'corner') {
-        msg.textContent = 'Stop at this corner';
-        sub.textContent = 'face into the room and hold steady';
-      } else {
-        msg.textContent = 'Stop and look across';
-        sub.textContent = 'turn to face the opposite wall, hold steady';
-      }
-      if (state.motion > MOTION_BAD) {
-        cls = 'bad';
-        msg.textContent = 'Hold still';
-        sub.textContent = 'too much movement to capture';
-      } else if (state.sharp < SHARP_BAD && state.sharp > 0) {
-        cls = 'warn';
-        msg.textContent = 'Frame is blurry';
-        sub.textContent = 'steady the camera';
-      }
-    } else if (state.appState === APP.CAPTURING) {
-      icon.classList.add('hidden');
-      ring.classList.remove('hidden');
-      const pct = Math.min(1, state.captureFrameCount / CAPTURE_FRAMES_NEEDED);
-      const circ = 2 * Math.PI * 18;
-      ring.querySelector('.fg-ring').setAttribute('stroke-dasharray', `${(pct*circ).toFixed(1)} ${circ.toFixed(1)}`);
-      msg.textContent = 'Capturing — hold steady';
-      sub.textContent = `${Math.round(pct*100)}% complete`;
-      if (state.motion > MOTION_BAD) {
-        cls = 'bad';
-        msg.textContent = 'Hold still!';
-        sub.textContent = 'movement is breaking the capture';
-      }
-    } else if (state.appState === APP.STATION_DONE) {
-      setIcon(icon, 'check');
-      cls = 'ok';
-      msg.textContent = 'Got it ✓';
-      sub.textContent = state.stationIdx + 1 >= state.protocol.stations.length
-        ? 'wrapping up...'
-        : 'keep going';
-    }
-
-    card.className = 'guidance-card ' + cls;
+    // Reticule label
+    $('reticule-label').textContent = state.looking || 'scanning…';
 
     // Dev panel
     if (state.devShown) {
-      $('dev-head').textContent = Math.round(state.alpha) + '°';
-      $('dev-steps').textContent = state.totalSteps + ' (' + state.stepsSinceStation + '/' + station.stepsToHere + ')';
-      const sh = $('dev-sharp');
-      sh.textContent = Math.round(state.sharp);
-      sh.className = 'val ' + (state.sharp < SHARP_BAD ? 'bad' : state.sharp < SHARP_OK ? 'warn' : 'ok');
-      const mt = $('dev-motion');
-      mt.textContent = Math.round(state.motion);
-      mt.className = 'val ' + (state.motion > MOTION_BAD ? 'bad' : state.motion > MOTION_OK ? 'warn' : 'ok');
-      $('dev-state').textContent = state.appState;
+      $('dev-planes').textContent = state.planeGrids.size;
+      $('dev-cells').textContent = totalCovered + ' / ' + totalCells;
+      $('dev-fps').textContent = state.fpsCounter.fps;
+      $('dev-pose').textContent = `${camPos.x.toFixed(1)},${camPos.y.toFixed(1)},${camPos.z.toFixed(1)}`;
     }
+
+    // Minimap
+    drawMinimap(camPos, camFwd);
   }
 
-  function setIcon(el, kind) {
-    let svg = '';
-    if (kind === 'arrow') {
-      svg = '<svg viewBox="0 0 24 24"><polyline points="5 12 19 12"/><polyline points="13 6 19 12 13 18"/></svg>';
-    } else if (kind === 'eye') {
-      svg = '<svg viewBox="0 0 24 24"><path d="M 1 12 C 4 6 8 4 12 4 C 16 4 20 6 23 12 C 20 18 16 20 12 20 C 8 20 4 18 1 12 Z"/><circle cx="12" cy="12" r="3.2"/></svg>';
-    } else if (kind === 'check') {
-      svg = '<svg viewBox="0 0 24 24"><polyline points="4 12.5 10 18 20 6"/></svg>';
-    }
-    el.innerHTML = svg;
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   }
 
-  // ============ MAIN LOOP ============
-  let lastAnalysis = 0;
-  function loop(t) {
-    if (t - lastAnalysis > 150) { analyzeFrame(); lastAnalysis = t; }
-    tick(t);
-    if (state.appState !== APP.COMPLETE && state.appState !== APP.INIT) renderHUD();
-    if (state.appState !== APP.COMPLETE) requestAnimationFrame(loop);
+  // ============ MINIMAP ============
+  const mmCanvas = $('minimap-canvas');
+  const mmCtx = mmCanvas.getContext('2d');
+  function drawMinimap(camPos, camFwd) {
+    const W = mmCanvas.width, H = mmCanvas.height;
+    mmCtx.clearRect(0, 0, W, H);
+
+    // Find world bounds covering all planes + camera
+    let minX = camPos.x - 1, maxX = camPos.x + 1;
+    let minZ = camPos.z - 1, maxZ = camPos.z + 1;
+    for (const grid of state.planeGrids.values()) {
+      // Approx world bounds: just use plane bbox transformed by current frame's plane pose
+      // Simpler: skip for now; use camera-centered fallback
+    }
+    // For simplicity, fixed window around camera
+    const win = 6; // meters half-window
+    const cx0 = camPos.x - win, cx1 = camPos.x + win;
+    const cz0 = camPos.z - win, cz1 = camPos.z + win;
+    const sx = W / (cx1 - cx0);
+    const sz = H / (cz1 - cz0);
+    const toX = (x) => (x - cx0) * sx;
+    const toY = (z) => H - (z - cz0) * sz; // flip so +z is "down" on screen
+
+    // Grid
+    mmCtx.strokeStyle = 'rgba(255,255,255,0.05)';
+    mmCtx.lineWidth = 1;
+    for (let g = -6; g <= 6; g += 1) {
+      mmCtx.beginPath();
+      mmCtx.moveTo(toX(camPos.x + g), 0); mmCtx.lineTo(toX(camPos.x + g), H);
+      mmCtx.stroke();
+      mmCtx.beginPath();
+      mmCtx.moveTo(0, toY(camPos.z + g)); mmCtx.lineTo(W, toY(camPos.z + g));
+      mmCtx.stroke();
+    }
+
+    // Planes: draw vertical planes (walls) as line traces on the floor
+    for (const grid of state.planeGrids.values()) {
+      // Use the last known frame's transform from the most recent frame.
+      // We don't have direct access here without storing — so approximate: skip render in v0.1.
+      // (Render walls roughly as colored dots at their tracked positions in next pass.)
+    }
+
+    // Camera position + heading
+    mmCtx.fillStyle = '#4dd4ff';
+    mmCtx.beginPath();
+    mmCtx.arc(toX(camPos.x), toY(camPos.z), 4, 0, Math.PI * 2);
+    mmCtx.fill();
+
+    const fwdLen = 0.8;
+    mmCtx.strokeStyle = '#4dd4ff';
+    mmCtx.lineWidth = 2;
+    mmCtx.beginPath();
+    mmCtx.moveTo(toX(camPos.x), toY(camPos.z));
+    mmCtx.lineTo(toX(camPos.x + camFwd.x * fwdLen), toY(camPos.z + camFwd.z * fwdLen));
+    mmCtx.stroke();
+
+    // Center "you are here" ring
+    mmCtx.strokeStyle = 'rgba(77, 212, 255, 0.3)';
+    mmCtx.lineWidth = 1;
+    mmCtx.beginPath();
+    mmCtx.arc(toX(camPos.x), toY(camPos.z), 10, 0, Math.PI * 2);
+    mmCtx.stroke();
+
+    // North indicator
+    mmCtx.fillStyle = 'rgba(255,255,255,0.3)';
+    mmCtx.font = '8px JetBrains Mono';
+    mmCtx.textAlign = 'center';
+    mmCtx.fillText('N', W/2, 10);
   }
 
   // ============ HANDLERS ============
-  document.querySelectorAll('.card').forEach(card => {
-    card.addEventListener('click', async () => {
-      const errEl = $('select-err');
-      errEl.textContent = '';
-      const motionOk = await requestMotion();
-      const camOk = await startCamera();
-      if (!motionOk && !camOk) {
-        errEl.textContent = '// permission denied for both — open from a non-sandboxed origin';
-        return;
-      }
-      if (!motionOk) errEl.textContent = '// motion denied — auto-detection unavailable';
-      window.addEventListener('deviceorientation', onOrientation);
-      window.addEventListener('devicemotion', onMotion);
-      startProtocol(card.dataset.proto);
-    });
-  });
-
-  $('prep-begin').addEventListener('click', beginCapture);
-  $('prep-back').addEventListener('click', () => setScreen('screen-init'));
-  $('cs-restart').addEventListener('click', () => {
-    state.appState = APP.INIT;
-    setScreen('screen-init');
-  });
-
+  $('start-btn').addEventListener('click', startAR);
+  $('exit-btn').addEventListener('click', endAR);
   $('dev-toggle').addEventListener('click', () => {
     state.devShown = !state.devShown;
     $('dev-panel').classList.toggle('shown', state.devShown);
     $('dev-toggle').classList.toggle('on', state.devShown);
   });
+
+  // ============ INIT ============
+  (async () => {
+    const ok = await checkCaps();
+    const btn = $('start-btn');
+    if (ok) {
+      btn.disabled = false;
+      btn.textContent = 'Start AR coverage';
+    } else {
+      btn.textContent = 'Not available on this device';
+    }
+  })();
 })();
 </script>
 </body>
