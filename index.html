@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Space-Synth Capture v0.4.5</title>
+<title>Space-Synth Capture v0.4.6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -568,6 +568,85 @@
     border-radius: 8px;
   }
 
+  /* AR onboarding overlay */
+  .ar-onboarding {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: calc(100% - 32px);
+    max-width: 360px;
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(28px) saturate(140%);
+    backdrop-filter: blur(28px) saturate(140%);
+    border: 1px solid var(--border-2);
+    border-radius: 18px;
+    padding: 22px;
+    text-align: center;
+    transition: opacity 0.6s ease-out;
+    pointer-events: auto;
+  }
+  .ar-onboarding.fading {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .ar-onboarding.gone { display: none; }
+  .ar-onboarding-icon {
+    width: 48px; height: 48px;
+    margin: 0 auto 12px;
+    color: var(--accent);
+    animation: orbit 3s ease-in-out infinite;
+  }
+  @keyframes orbit {
+    0%, 100% { transform: rotate(-8deg); }
+    50% { transform: rotate(8deg); }
+  }
+  .ar-onboarding-icon svg {
+    width: 100%; height: 100%;
+    stroke: currentColor; stroke-width: 1.8; fill: none;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .ar-onboarding-title {
+    font-size: 18px; font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .ar-onboarding-desc {
+    font-size: 13.5px; line-height: 1.5;
+    color: var(--ink-2);
+    margin-bottom: 8px;
+  }
+  .ar-onboarding-stat {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Contextual hint pill (below reticule when no onboarding) */
+  .ar-hint {
+    position: absolute;
+    top: calc(50% + 60px); left: 50%;
+    transform: translate(-50%, 0);
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-2);
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-2);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 2;
+  }
+  .ar-hint.hidden { opacity: 0; }
+
   /* Dimensions input */
   .dims-form {
     display: flex; flex-direction: column; gap: 16px;
@@ -718,7 +797,7 @@
 
     <div class="err" id="select-err"></div>
     <div style="margin-top:auto; padding-top:24px; text-align:center;">
-      <span class="build-tag">BUILD v0.4.5 · 2026-05-12 · AR mode added</span>
+      <span class="build-tag">BUILD v0.4.6 · 2026-05-12 · AR rendering + onboarding</span>
     </div>
   </div>
 </div>
@@ -930,6 +1009,22 @@
   <div class="ar-reticule-wrap">
     <div class="ar-reticule"></div>
     <div class="ar-reticule-label" id="ar-reticule-label">scanning…</div>
+  </div>
+
+  <div class="ar-hint hidden" id="ar-hint">Move phone slowly to detect surfaces</div>
+
+  <div class="ar-onboarding" id="ar-onboarding">
+    <div class="ar-onboarding-icon">
+      <svg viewBox="0 0 48 48">
+        <rect x="14" y="10" width="20" height="32" rx="3"/>
+        <circle cx="24" cy="36" r="1.5" fill="currentColor"/>
+        <path d="M 8 20 Q 24 6 40 20" stroke-dasharray="2 3"/>
+        <path d="M 8 28 Q 24 14 40 28" stroke-dasharray="2 3" opacity="0.5"/>
+      </svg>
+    </div>
+    <div class="ar-onboarding-title">Slowly look around the room</div>
+    <div class="ar-onboarding-desc">Move your phone toward different walls. ARCore needs a few seconds of motion to detect surfaces — once it finds a wall or floor, you'll see it light up in the camera view.</div>
+    <div class="ar-onboarding-stat" id="ar-onboarding-stat">Detecting surfaces… <span id="ar-onboarding-count">0</span> found</div>
   </div>
 
   <div class="ar-bottom-panel">
@@ -1773,13 +1868,153 @@
     gl: null,
     glLayer: null,
     planeGrids: new Map(),
-    planeCounter: 0,
+    planeCounter: { wall: 0, surface: 0 },
     looking: null,
     lastOverlayUpdate: 0,
+    wallNamer: 0,
+    surfaceNamer: 0,
+    floorAssigned: false,
+    ceilingAssigned: false,
+    onboarded: false,
+    sessionStartTime: 0,
   };
 
+  // ============ WebGL rendering ============
+  const ARGL = {
+    program: null,
+    aPos: -1,
+    uMVP: null,
+    uColor: null,
+    buffer: null,
+    quadVerts: new Float32Array(12), // 4 corners * 3 coords (plane-local; y=0)
+  };
+
+  const AR_VS = `
+    attribute vec3 a_position;
+    uniform mat4 u_mvp;
+    void main() {
+      gl_Position = u_mvp * vec4(a_position, 1.0);
+    }
+  `;
+  const AR_FS = `
+    precision mediump float;
+    uniform vec4 u_color;
+    void main() {
+      gl_FragColor = u_color;
+    }
+  `;
+
+  function compileShader(gl, type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error('Shader compile error:', gl.getShaderInfoLog(s));
+      return null;
+    }
+    return s;
+  }
+
+  function initARGL(gl) {
+    const vs = compileShader(gl, gl.VERTEX_SHADER, AR_VS);
+    const fs = compileShader(gl, gl.FRAGMENT_SHADER, AR_FS);
+    if (!vs || !fs) return false;
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      console.error('Program link error:', gl.getProgramInfoLog(prog));
+      return false;
+    }
+    ARGL.program = prog;
+    ARGL.aPos = gl.getAttribLocation(prog, 'a_position');
+    ARGL.uMVP = gl.getUniformLocation(prog, 'u_mvp');
+    ARGL.uColor = gl.getUniformLocation(prog, 'u_color');
+    ARGL.buffer = gl.createBuffer();
+    return true;
+  }
+
+  // Column-major 4x4 multiplication: out = a * b
+  function mat4Mul(a, b) {
+    const out = new Float32Array(16);
+    for (let c = 0; c < 4; c++) {
+      for (let r = 0; r < 4; r++) {
+        let sum = 0;
+        for (let k = 0; k < 4; k++) {
+          sum += a[r + k * 4] * b[k + c * 4];
+        }
+        out[r + c * 4] = sum;
+      }
+    }
+    return out;
+  }
+
+  function coverageToColor(pct, kind) {
+    // kind: 'wall' | 'floor' | 'ceiling' | 'surface'
+    // Walls/floor/ceiling: cyan→green
+    // Surface (object): amber tint, doesn't change with coverage
+    if (kind === 'surface') {
+      return [1.0, 0.7, 0.28, 0.12]; // amber, low alpha
+    }
+    // Interpolate from red→amber→green based on pct (0..1)
+    let r, g, b;
+    if (pct < 0.5) {
+      const t = pct / 0.5;
+      r = 1.0 - 0.7 * t; // 1.0 → 0.3
+      g = 0.35 + 0.5 * t; // 0.35 → 0.85
+      b = 0.4 - 0.2 * t;  // 0.4 → 0.2
+    } else {
+      const t = (pct - 0.5) / 0.5;
+      r = 0.3 - 0.15 * t;
+      g = 0.85;
+      b = 0.2 + 0.3 * t;
+    }
+    return [r, g, b, 0.18];
+  }
+
+  function renderARPlanes(gl, frame, view) {
+    if (!ARGL.program) return;
+    gl.useProgram(ARGL.program);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.disable(gl.DEPTH_TEST);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, ARGL.buffer);
+    gl.enableVertexAttribArray(ARGL.aPos);
+    gl.vertexAttribPointer(ARGL.aPos, 3, gl.FLOAT, false, 0, 0);
+
+    const proj = view.projectionMatrix;
+    const viewMat = view.transform.inverse.matrix;
+    const projView = mat4Mul(proj, viewMat);
+
+    for (const [plane, grid] of AR.planeGrids) {
+      const planePose = frame.getPose(plane.planeSpace, AR.refSpace);
+      if (!planePose) continue;
+      const model = planePose.transform.matrix;
+      const mvp = mat4Mul(projView, model);
+
+      // Build quad in plane-local space (XZ plane, Y=0)
+      const bb = grid.bbox;
+      ARGL.quadVerts[0]  = bb.minX; ARGL.quadVerts[1]  = 0; ARGL.quadVerts[2]  = bb.minZ;
+      ARGL.quadVerts[3]  = bb.maxX; ARGL.quadVerts[4]  = 0; ARGL.quadVerts[5]  = bb.minZ;
+      ARGL.quadVerts[6]  = bb.maxX; ARGL.quadVerts[7]  = 0; ARGL.quadVerts[8]  = bb.maxZ;
+      ARGL.quadVerts[9]  = bb.minX; ARGL.quadVerts[10] = 0; ARGL.quadVerts[11] = bb.maxZ;
+      gl.bufferData(gl.ARRAY_BUFFER, ARGL.quadVerts, gl.DYNAMIC_DRAW);
+
+      const pct = grid.totalCells === 0 ? 0 : grid.coveredCount / grid.totalCells;
+      const c = coverageToColor(pct, grid.kind);
+      gl.uniformMatrix4fv(ARGL.uMVP, false, mvp);
+      // Filled translucent quad
+      gl.uniform4f(ARGL.uColor, c[0], c[1], c[2], c[3]);
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+      // Outline (higher alpha)
+      gl.uniform4f(ARGL.uColor, c[0], c[1], c[2], 0.85);
+      gl.drawArrays(gl.LINE_LOOP, 0, 4);
+    }
+  }
+
   function setScreenAR(id) {
-    // Hide all standard screens
     ['screen-init', 'screen-dims', 'screen-prepare', 'screen-complete', 'screen-ar-entry'].forEach(s => {
       const el = $(s);
       if (el) el.classList.add('hidden');
@@ -1833,10 +2068,15 @@
     }
 
     const canvas = $('xr-canvas');
-    const gl = canvas.getContext('webgl', { xrCompatible: true, alpha: true, antialias: false });
+    const gl = canvas.getContext('webgl', { xrCompatible: true, alpha: true, antialias: true });
     if (!gl) { errEl.textContent = '// Failed to obtain WebGL context'; return; }
     AR.gl = gl;
     canvas.classList.add('active');
+
+    if (!ARGL.program) {
+      const ok = initARGL(gl);
+      if (!ok) { errEl.textContent = '// Failed to compile WebGL shaders'; canvas.classList.remove('active'); return; }
+    }
 
     let session;
     try {
@@ -1859,6 +2099,16 @@
       session.requestReferenceSpace('local')
     );
 
+    // Reset onboarding state
+    AR.onboarded = false;
+    AR.sessionStartTime = performance.now();
+    AR.wallNamer = 0;
+    AR.surfaceNamer = 0;
+    AR.floorAssigned = false;
+    AR.ceilingAssigned = false;
+    $('ar-onboarding').classList.remove('fading', 'gone');
+    $('ar-hint').classList.add('hidden');
+
     setScreenAR(null);
     $('ar-overlay').classList.remove('hidden');
     session.requestAnimationFrame(onARFrame);
@@ -1870,12 +2120,14 @@
     }
     AR.session = null;
     AR.planeGrids.clear();
-    AR.planeCounter = 0;
     AR.looking = null;
+    AR.onboarded = false;
     $('xr-canvas').classList.remove('active');
     $('ar-stats-list').innerHTML = '<div class="ar-stats-empty">Detecting surfaces… aim at walls and floor.</div>';
     $('ar-total-fill').style.width = '0%';
     $('ar-total-pct').textContent = '0%';
+    $('ar-hint').classList.add('hidden');
+    $('ar-onboarding').classList.remove('fading', 'gone');
     setScreenAR('screen-init');
   }
 
@@ -1885,7 +2137,8 @@
     session.requestAnimationFrame(onARFrame);
 
     const gl = AR.gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, AR.glLayer.framebuffer);
+    const glLayer = AR.glLayer;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, glLayer.framebuffer);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -1899,13 +2152,43 @@
     if (frame.detectedPlanes) {
       updateARPlaneGrids(frame, frame.detectedPlanes, camPos, camFwd);
     }
+
+    // Render planes into AR view (per XRView)
+    for (const view of pose.views) {
+      const vp = glLayer.getViewport(view);
+      gl.viewport(vp.x, vp.y, vp.width, vp.height);
+      renderARPlanes(gl, frame, view);
+    }
+
     updateAROverlay(camPos, camFwd);
+  }
+
+  function pickPlaneLabel(plane, planeY) {
+    const orient = plane.orientation || 'unknown';
+    if (orient === 'horizontal') {
+      if (planeY < 0.4 && !AR.floorAssigned) {
+        AR.floorAssigned = true;
+        return { label: 'Floor', kind: 'floor' };
+      }
+      if (planeY > 2.0 && !AR.ceilingAssigned) {
+        AR.ceilingAssigned = true;
+        return { label: 'Ceiling', kind: 'ceiling' };
+      }
+      AR.surfaceNamer++;
+      return { label: `Surface ${AR.surfaceNamer} (object?)`, kind: 'surface' };
+    } else if (orient === 'vertical') {
+      AR.wallNamer++;
+      return { label: `Wall ${AR.wallNamer}`, kind: 'wall' };
+    }
+    return { label: 'Plane', kind: 'surface' };
   }
 
   function updateARPlaneGrids(frame, detectedPlanes, camPos, camFwd) {
     detectedPlanes.forEach(plane => {
       if (!AR.planeGrids.has(plane)) {
-        const grid = createARPlaneGrid(plane);
+        const planePose = frame.getPose(plane.planeSpace, AR.refSpace);
+        const planeY = planePose ? planePose.transform.matrix[13] : 0;
+        const grid = createARPlaneGrid(plane, planeY);
         if (grid) AR.planeGrids.set(plane, grid);
       }
     });
@@ -1943,18 +2226,18 @@
         grid.coveredCount++;
       }
 
-      // Plane the camera is currently pointed at
       const ppx = pm[12] - camPos.x, ppy = pm[13] - camPos.y, ppz = pm[14] - camPos.z;
       const dp = Math.sqrt(ppx*ppx + ppy*ppy + ppz*ppz);
       const fwdAlign = (ppx*camFwd.x + ppy*camFwd.y + ppz*camFwd.z) / dp;
       if (fwdAlign > 0.85 && dp < closestLookingDist && dp < 8) {
         closestLookingDist = dp;
-        AR.looking = grid.label;
+        const pct = grid.totalCells === 0 ? 0 : Math.round(grid.coveredCount * 100 / grid.totalCells);
+        AR.looking = `${grid.label} · ${pct}%`;
       }
     }
   }
 
-  function createARPlaneGrid(plane) {
+  function createARPlaneGrid(plane, planeY) {
     if (!plane.polygon || plane.polygon.length < 3) return null;
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     for (const p of plane.polygon) {
@@ -1983,12 +2266,16 @@
       }
     }
 
-    AR.planeCounter++;
-    const orientation = plane.orientation || 'unknown';
-    let label = orientation === 'horizontal' ? `Floor/ceiling ${AR.planeCounter}`
-              : orientation === 'vertical'   ? `Wall ${AR.planeCounter}`
-                                              : `Plane ${AR.planeCounter}`;
-    return { cells, totalCells: cells.length, coveredCount: 0, orientation, label };
+    const labelInfo = pickPlaneLabel(plane, planeY);
+    return {
+      cells,
+      totalCells: cells.length,
+      coveredCount: 0,
+      orientation: plane.orientation || 'unknown',
+      label: labelInfo.label,
+      kind: labelInfo.kind,
+      bbox: { minX, maxX, minZ, maxZ, width, depth },
+    };
   }
 
   function updateAROverlay(camPos, camFwd) {
@@ -1996,22 +2283,72 @@
     if (now - AR.lastOverlayUpdate < 100) return;
     AR.lastOverlayUpdate = now;
 
-    let totalCells = 0, totalCovered = 0;
-    for (const g of AR.planeGrids.values()) { totalCells += g.totalCells; totalCovered += g.coveredCount; }
-    const totalPct = totalCells === 0 ? 0 : Math.round(totalCovered * 100 / totalCells);
+    // Onboarding management
+    const planeCount = AR.planeGrids.size;
+    const elapsedSec = (now - AR.sessionStartTime) / 1000;
+    if (!AR.onboarded) {
+      $('ar-onboarding-count').textContent = planeCount;
+      // Auto-fade after first plane detected, or after 12s
+      if (planeCount >= 1 || elapsedSec > 12) {
+        AR.onboarded = true;
+        const ob = $('ar-onboarding');
+        ob.classList.add('fading');
+        setTimeout(() => ob.classList.add('gone'), 700);
+        $('ar-hint').classList.remove('hidden');
+      }
+    }
+
+    // Count only PRIMARY surfaces (walls/floor/ceiling) toward total
+    let primaryCells = 0, primaryCovered = 0;
+    let objectCells = 0, objectCovered = 0;
+    for (const g of AR.planeGrids.values()) {
+      if (g.kind === 'surface') {
+        objectCells += g.totalCells;
+        objectCovered += g.coveredCount;
+      } else {
+        primaryCells += g.totalCells;
+        primaryCovered += g.coveredCount;
+      }
+    }
+    const totalPct = primaryCells === 0 ? 0 : Math.round(primaryCovered * 100 / primaryCells);
     $('ar-total-pct').textContent = totalPct + '%';
     $('ar-total-fill').style.width = totalPct + '%';
 
+    // Contextual hint based on state
+    if (AR.onboarded) {
+      const hint = $('ar-hint');
+      if (planeCount === 0) {
+        hint.textContent = 'Move phone slowly to detect surfaces';
+      } else if (totalPct < 5) {
+        hint.textContent = 'Aim camera at a wall to scan it';
+      } else if (totalPct < 60) {
+        hint.textContent = 'Keep scanning — walk along each wall';
+      } else if (totalPct < 90) {
+        hint.textContent = 'Almost done — find the missing areas';
+      } else {
+        hint.textContent = 'Looks complete ✓';
+      }
+    }
+
+    // Stats list
     const list = $('ar-stats-list');
-    if (AR.planeGrids.size === 0) {
+    if (planeCount === 0) {
       list.innerHTML = '<div class="ar-stats-empty">Detecting surfaces… aim at walls and floor.</div>';
     } else {
-      const grids = [...AR.planeGrids.values()].sort((a, b) => a.label.localeCompare(b.label));
+      const grids = [...AR.planeGrids.values()].sort((a, b) => {
+        // Primary first, then by label
+        if (a.kind !== 'surface' && b.kind === 'surface') return -1;
+        if (a.kind === 'surface' && b.kind !== 'surface') return 1;
+        return a.label.localeCompare(b.label);
+      });
       list.innerHTML = grids.map(g => {
         const pct = g.totalCells === 0 ? 0 : Math.round(g.coveredCount * 100 / g.totalCells);
-        const color = pct >= 80 ? '#4ade80' : pct >= 40 ? '#ffb347' : '#ff5266';
+        let color;
+        if (g.kind === 'surface') color = '#ffb347';
+        else color = pct >= 80 ? '#4ade80' : pct >= 40 ? '#ffb347' : '#ff5266';
+        const escLabel = g.label.replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
         return `<div class="ar-stat-row">
-          <span class="name">${g.label.replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]))}</span>
+          <span class="name">${escLabel}</span>
           <div class="bar"><div class="fill" style="width:${pct}%; background:${color}"></div></div>
           <span class="pct">${pct}%</span>
         </div>`;
