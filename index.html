@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Space-Synth Capture v0.4.6</title>
+<title>Space-Synth Capture v0.4.7</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -362,6 +362,80 @@
   .center-text { text-align: center; align-items: center; }
 
   .hidden { display: none !important; }
+
+  /* Recording indicator (top corner of HUD while recording) */
+  .rec-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(255, 82, 102, 0.18);
+    border: 1px solid rgba(255, 82, 102, 0.4);
+    border-radius: 999px;
+    padding: 3px 8px 3px 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #ff5266;
+    margin-right: 6px;
+  }
+  .rec-badge.hidden { display: none; }
+  .rec-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #ff5266;
+    box-shadow: 0 0 6px rgba(255, 82, 102, 0.6);
+    animation: rec-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes rec-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* Video result block on complete screen */
+  .video-result {
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 18px;
+    text-align: left;
+  }
+  .video-result.hidden { display: none; }
+  .video-result-head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+  }
+  .video-icon {
+    width: 36px; height: 36px;
+    background: rgba(74, 222, 128, 0.14);
+    border: 1px solid rgba(74, 222, 128, 0.32);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: #4ade80;
+    flex-shrink: 0;
+  }
+  .video-icon svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; }
+  .video-result-meta { flex: 1; }
+  .video-result-title {
+    font-size: 14px; font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .video-result-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .video-warn {
+    background: rgba(255, 179, 71, 0.08);
+    border: 1px solid rgba(255, 179, 71, 0.3);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-top: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--amber);
+    line-height: 1.5;
+  }
+  .video-warn.hidden { display: none; }
 
   /* ============ AR MODE STYLES ============ */
   #xr-canvas {
@@ -797,7 +871,7 @@
 
     <div class="err" id="select-err"></div>
     <div style="margin-top:auto; padding-top:24px; text-align:center;">
-      <span class="build-tag">BUILD v0.4.6 · 2026-05-12 · AR rendering + onboarding</span>
+      <span class="build-tag">BUILD v0.4.7 · 2026-05-18 · video capture</span>
     </div>
   </div>
 </div>
@@ -891,6 +965,7 @@
 <div class="hud hidden" id="hud">
   <div>
     <div class="progress-strip">
+      <span class="rec-badge hidden" id="rec-badge"><span class="rec-dot"></span>REC</span>
       <div class="progress-dots" id="progress-dots"></div>
       <div class="progress-text" id="progress-text">1 of 8</div>
     </div>
@@ -962,6 +1037,23 @@
         <div class="stat-card-val" id="cs-time">0s</div>
         <div class="stat-card-lbl">Duration</div>
       </div>
+    </div>
+
+    <div class="video-result hidden" id="video-result">
+      <div class="video-result-head">
+        <div class="video-icon">
+          <svg viewBox="0 0 24 24"><path d="M 15 10 L 19.5 7 V 17 L 15 14 Z M 4 7 H 15 V 17 H 4 Z" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="video-result-meta">
+          <div class="video-result-title">Video captured</div>
+          <div class="video-result-sub" id="video-result-sub">— MB · — format</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="download-video-btn">Download video</button>
+    </div>
+
+    <div class="video-warn hidden" id="video-warn">
+      // Video recording failed or unsupported on this browser. The capture telemetry was tracked, but no video file was produced.
     </div>
 
     <div style="margin-top:28px; width:100%;">
@@ -1150,6 +1242,17 @@
     lastStepTime: 0,
 
     devShown: false,
+
+    // Video recording state
+    recording: {
+      recorder: null,
+      chunks: [],
+      mimeType: '',
+      videoBlob: null,
+      videoUrl: null,
+      sizeBytes: 0,
+      error: null,
+    },
   };
 
   const $ = (id) => document.getElementById(id);
@@ -1438,15 +1541,109 @@
     $('prep-total').textContent = state.protocol.stations.length;
   }
 
+  function startRecording() {
+    state.recording.error = null;
+    state.recording.videoBlob = null;
+    if (state.recording.videoUrl) {
+      URL.revokeObjectURL(state.recording.videoUrl);
+      state.recording.videoUrl = null;
+    }
+    state.recording.chunks = [];
+    state.recording.sizeBytes = 0;
+
+    if (!('MediaRecorder' in window)) {
+      state.recording.error = 'MediaRecorder API not supported in this browser';
+      return false;
+    }
+    if (!video.srcObject) {
+      state.recording.error = 'No active camera stream to record';
+      return false;
+    }
+
+    // Pick the best available codec
+    const candidates = [
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+      '',
+    ];
+    let mimeType = '';
+    for (const m of candidates) {
+      if (m === '' || MediaRecorder.isTypeSupported(m)) { mimeType = m; break; }
+    }
+
+    try {
+      const opts = mimeType ? { mimeType, videoBitsPerSecond: 4_000_000 } : { videoBitsPerSecond: 4_000_000 };
+      const recorder = new MediaRecorder(video.srcObject, opts);
+      state.recording.recorder = recorder;
+      state.recording.mimeType = recorder.mimeType || mimeType || 'video/webm';
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          state.recording.chunks.push(e.data);
+          state.recording.sizeBytes += e.data.size;
+        }
+      };
+      recorder.onerror = (e) => {
+        state.recording.error = 'Recording error: ' + (e.error?.name || 'unknown');
+        console.error('MediaRecorder error:', e);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(state.recording.chunks, { type: state.recording.mimeType });
+        state.recording.videoBlob = blob;
+        state.recording.videoUrl = URL.createObjectURL(blob);
+      };
+
+      recorder.start(1000); // 1-second chunks
+      $('rec-badge').classList.remove('hidden');
+      return true;
+    } catch (err) {
+      state.recording.error = 'Failed to start recording: ' + err.message;
+      console.error(err);
+      return false;
+    }
+  }
+
+  function stopRecording() {
+    const r = state.recording.recorder;
+    if (r && r.state !== 'inactive') {
+      try { r.stop(); } catch (e) { console.error('Stop error:', e); }
+    }
+    $('rec-badge').classList.add('hidden');
+  }
+
+  function formatBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    if (n < 1024 * 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + ' MB';
+    return (n / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+  }
+
+  function downloadVideo() {
+    if (!state.recording.videoUrl) return;
+    const ext = state.recording.mimeType.includes('mp4') ? 'mp4' : 'webm';
+    const now = new Date();
+    const stamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `capture-${stamp}.${ext}`;
+    const a = document.createElement('a');
+    a.href = state.recording.videoUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
   function beginCapture() {
     setScreen('hud');
     state.captureStartTime = performance.now();
+    startRecording();
     // First station is at the user's starting corner; go directly to AT_STATION
     transition(APP.AT_STATION);
     requestAnimationFrame(loop);
   }
 
   function showComplete() {
+    stopRecording();
     setScreen('screen-complete');
     $('cs-proto-name').textContent = state.protocol.name + ' · ' + state.protocol.stations.length + ' stations';
     $('cs-stations').textContent = `${state.stationsDone}/${state.protocol.stations.length}`;
@@ -1454,6 +1651,30 @@
     $('cs-frames').textContent = state.qaFrames;
     const dur = Math.round((performance.now() - state.captureStartTime) / 1000);
     $('cs-time').textContent = dur + 's';
+
+    // Populate video result block (poll until blob is ready — onstop is async)
+    const videoResult = $('video-result');
+    const videoWarn = $('video-warn');
+    videoResult.classList.add('hidden');
+    videoWarn.classList.add('hidden');
+
+    if (state.recording.error) {
+      videoWarn.textContent = '// ' + state.recording.error;
+      videoWarn.classList.remove('hidden');
+    } else {
+      // Wait for the recorder's onstop to finalize the blob
+      const checkBlob = () => {
+        if (state.recording.videoBlob) {
+          const sizeStr = formatBytes(state.recording.videoBlob.size);
+          const mimeShort = state.recording.mimeType.split(';')[0] || 'video/webm';
+          $('video-result-sub').textContent = `${sizeStr} · ${mimeShort} · ${dur}s`;
+          videoResult.classList.remove('hidden');
+        } else {
+          setTimeout(checkBlob, 100);
+        }
+      };
+      checkBlob();
+    }
   }
 
   function setScreen(id) {
@@ -1844,8 +2065,16 @@
   $('cs-restart').addEventListener('click', () => {
     state.appState = APP.INIT;
     pendingProtocolId = null;
+    // Cleanup any held video resources
+    if (state.recording.videoUrl) {
+      URL.revokeObjectURL(state.recording.videoUrl);
+      state.recording.videoUrl = null;
+      state.recording.videoBlob = null;
+    }
     setScreen('screen-init');
   });
+
+  $('download-video-btn').addEventListener('click', downloadVideo);
 
   $('dev-toggle').addEventListener('click', () => {
     state.devShown = !state.devShown;
