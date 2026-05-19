@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>Space-Synth Capture v0.5.0</title>
+<title>Space-Synth Capture v0.5.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -223,6 +223,75 @@
     cursor: pointer;
   }
   .unit-toggle button.on { background: var(--ink); color: var(--bg); }
+
+  /* Checkbox-style toggle for opt-in optional groups */
+  .dim-group-checkbox {
+    display: flex; align-items: center; gap: 11px;
+    cursor: pointer;
+    margin-bottom: 12px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .dim-group-checkbox input[type="checkbox"] { display: none; }
+  .dim-checkbox-box {
+    width: 20px; height: 20px;
+    border: 1.5px solid var(--border-2);
+    border-radius: 5px;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+  }
+  .dim-group-checkbox input[type="checkbox"]:checked + .dim-checkbox-box {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .dim-group-checkbox input[type="checkbox"]:checked + .dim-checkbox-box::after {
+    content: '';
+    position: absolute;
+    width: 5px; height: 9px;
+    border: solid var(--bg);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-1px, -1.5px);
+  }
+  .dim-checkbox-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+  .dim-checkbox-label .label-sub {
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--ink-4);
+    font-weight: 500;
+    margin-left: 4px;
+  }
+
+  /* Disabled input appearance */
+  .dim-input:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+    background: rgba(0,0,0,0.2);
+    color: var(--ink-3);
+  }
+  .dim-row:has(.dim-input:disabled) .dim-label {
+    color: var(--ink-4);
+  }
+  .dim-row:has(.dim-input:disabled) .dim-unit {
+    opacity: 0.4;
+  }
+
+  .dim-group-note {
+    font-size: 12px;
+    color: var(--ink-3);
+    line-height: 1.45;
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.01em;
+  }
+  .dim-group-note.hidden { display: none; }
 
   /* Prep diagram */
   .prep-diagram {
@@ -605,7 +674,7 @@
   <button class="btn btn-primary" id="init-begin">Begin capture</button>
 
   <div style="text-align: center; margin-top: 18px;">
-    <span class="build-tag">BUILD v0.5.0 · 2026-05-18 · TOUR PROTOCOL</span>
+    <span class="build-tag">BUILD v0.5.1 · 2026-05-18 · OPTIONAL TABLE DIMS</span>
   </div>
   <div class="err" id="init-err"></div>
 </section>
@@ -626,41 +695,48 @@
     <div class="dim-row">
       <div class="dim-label">Length</div>
       <div class="dim-input-wrap">
-        <input type="number" class="dim-input" id="dim-L" inputmode="decimal" value="7" step="0.1" min="2" max="50">
+        <input type="number" class="dim-input" id="dim-L" inputmode="decimal" placeholder="e.g. 7.0" step="0.1" min="2" max="50">
         <span class="dim-unit" id="dim-L-unit">m</span>
       </div>
     </div>
     <div class="dim-row">
       <div class="dim-label">Width</div>
       <div class="dim-input-wrap">
-        <input type="number" class="dim-input" id="dim-W" inputmode="decimal" value="4.5" step="0.1" min="2" max="30">
+        <input type="number" class="dim-input" id="dim-W" inputmode="decimal" placeholder="e.g. 4.5" step="0.1" min="2" max="30">
         <span class="dim-unit" id="dim-W-unit">m</span>
       </div>
     </div>
     <div class="dim-row">
       <div class="dim-label">Height</div>
       <div class="dim-input-wrap">
-        <input type="number" class="dim-input" id="dim-H" inputmode="decimal" value="2.7" step="0.1" min="2" max="8">
+        <input type="number" class="dim-input" id="dim-H" inputmode="decimal" placeholder="e.g. 2.7" step="0.1" min="2" max="8">
         <span class="dim-unit" id="dim-H-unit">m</span>
       </div>
     </div>
   </div>
 
-  <div class="dim-group">
-    <div class="dim-group-title">Conference table</div>
+  <div class="dim-group" id="table-group">
+    <label class="dim-group-checkbox">
+      <input type="checkbox" id="enable-table">
+      <span class="dim-checkbox-box"></span>
+      <span class="dim-checkbox-label">Specify table dimensions<span class="label-sub">— rectangular only</span></span>
+    </label>
     <div class="dim-row">
       <div class="dim-label">Length</div>
       <div class="dim-input-wrap">
-        <input type="number" class="dim-input" id="dim-TL" inputmode="decimal" value="3" step="0.1" min="0.5" max="20">
+        <input type="number" class="dim-input" id="dim-TL" inputmode="decimal" placeholder="e.g. 3.0" step="0.1" min="0.5" max="20" disabled>
         <span class="dim-unit" id="dim-TL-unit">m</span>
       </div>
     </div>
     <div class="dim-row">
       <div class="dim-label">Width</div>
       <div class="dim-input-wrap">
-        <input type="number" class="dim-input" id="dim-TW" inputmode="decimal" value="1.2" step="0.1" min="0.5" max="10">
+        <input type="number" class="dim-input" id="dim-TW" inputmode="decimal" placeholder="e.g. 1.2" step="0.1" min="0.5" max="10" disabled>
         <span class="dim-unit" id="dim-TW-unit">m</span>
       </div>
+    </div>
+    <div class="dim-group-note">
+      // Leave unchecked for U-shaped, round, oval, or multi-table layouts. The app uses generic interior-loop guidance when table dimensions are skipped.
     </div>
   </div>
 
@@ -731,15 +807,15 @@
     <div class="hero-row">
       <div class="hero-num" style="background:rgba(255,179,71,0.14);color:var(--amber);border-color:rgba(255,179,71,0.32);">4</div>
       <div class="hero-body">
-        <div class="hero-title">After the perimeter, curve toward the table</div>
-        <div class="hero-desc">The app will prompt you. Walk in toward the table, camera now pointed at it.</div>
+        <div class="hero-title">After the perimeter, curve inward</div>
+        <div class="hero-desc">The app will prompt you. Walk in toward the room interior — the table, U-shape, or whatever furniture is at the center — with camera now pointed at it.</div>
       </div>
     </div>
     <div class="hero-row">
       <div class="hero-num" style="background:rgba(77,212,255,0.14);color:var(--accent);">5</div>
       <div class="hero-body">
-        <div class="hero-title">Walk clockwise around the table</div>
-        <div class="hero-desc">~1.5m from the table. The app tells you when capture is complete.</div>
+        <div class="hero-title">Walk a clockwise interior loop</div>
+        <div class="hero-desc">Around the furniture cluster at ~1.5m. For non-rectangular shapes (U-shaped tables, multiple tables), trace the outer edge of the furniture as a loop. The app tells you when capture is complete.</div>
       </div>
     </div>
   </div>
@@ -852,6 +928,9 @@ const FAST_PACE_MS = 0.8;          // warn if walking faster than this
 const PERIMETER_OFFSET = 1.5;      // distance from walls during perimeter walk (m)
 const TABLE_LOOP_OFFSET = 1.0;     // distance from table during interior loop (m)
 const TRANSITION_STEPS = 4;        // approx steps for the transition curve
+// Heuristic when table dims are unknown: interior loop walking distance
+// ≈ a fraction of the perimeter. Empirically ~0.55 for typical conference rooms.
+const INTERIOR_LOOP_HEURISTIC_RATIO = 0.55;
 const PHASES = {
   IDLE: 'idle',
   PERIMETER: 'perimeter',
@@ -863,7 +942,8 @@ const PHASES = {
 // ============ STATE ============
 const state = {
   unit: 'm',
-  dims: { L: 7, W: 4.5, H: 2.7, TL: 3, TW: 1.2 },
+  dims: { L: 0, W: 0, H: 0, TL: 0, TW: 0 },
+  tableSkipped: true,  // default: skipped (rectangular not assumed)
   computed: { perimeterM: 0, perimeterSteps: 0, interiorM: 0, interiorSteps: 0, totalSteps: 0 },
 
   phase: PHASES.IDLE,
@@ -921,8 +1001,10 @@ function readDimsFromInputs() {
   state.dims.L  = factor(parseFloat($('dim-L').value)  || 0);
   state.dims.W  = factor(parseFloat($('dim-W').value)  || 0);
   state.dims.H  = factor(parseFloat($('dim-H').value)  || 0);
-  state.dims.TL = factor(parseFloat($('dim-TL').value) || 0);
-  state.dims.TW = factor(parseFloat($('dim-TW').value) || 0);
+  if (!state.tableSkipped) {
+    state.dims.TL = factor(parseFloat($('dim-TL').value) || 0);
+    state.dims.TW = factor(parseFloat($('dim-TW').value) || 0);
+  }
   computeDerivedDims();
 }
 
@@ -933,10 +1015,16 @@ function computeDerivedDims() {
   const perimeterEffectiveW = Math.max(d.W - 2 * PERIMETER_OFFSET, 1);
   state.computed.perimeterM = 2 * (perimeterEffectiveL + perimeterEffectiveW);
 
-  // Interior loop walking distance (1m off table)
-  const loopL = d.TL + 2 * TABLE_LOOP_OFFSET;
-  const loopW = d.TW + 2 * TABLE_LOOP_OFFSET;
-  state.computed.interiorM = 2 * (loopL + loopW);
+  // Interior loop walking distance
+  if (state.tableSkipped) {
+    // Heuristic: typical conference table loop is ~55% of perimeter
+    state.computed.interiorM = state.computed.perimeterM * INTERIOR_LOOP_HEURISTIC_RATIO;
+  } else {
+    // Computed from rectangular table dimensions + corridor offset
+    const loopL = d.TL + 2 * TABLE_LOOP_OFFSET;
+    const loopW = d.TW + 2 * TABLE_LOOP_OFFSET;
+    state.computed.interiorM = 2 * (loopL + loopW);
+  }
 
   state.computed.perimeterSteps = Math.round(state.computed.perimeterM / STRIDE_M);
   state.computed.interiorSteps  = Math.round(state.computed.interiorM / STRIDE_M);
@@ -1161,18 +1249,27 @@ function renderPhaseUI() {
   const desc = $('phase-desc');
   card.classList.toggle('transition', state.phase === PHASES.TRANSITION);
 
+  const tableNoun = state.tableSkipped ? 'the room interior' : 'the conference table';
+  const tableShortNoun = state.tableSkipped ? 'the interior' : 'the table';
+
   if (state.phase === PHASES.PERIMETER) {
     eyebrow.textContent = 'PHASE 1 · PERIMETER';
     title.textContent = 'Walk slowly along the wall on your left';
     desc.textContent = 'Keep camera at the wall, ~1.5m perpendicular. Curve smoothly through corners.';
   } else if (state.phase === PHASES.TRANSITION) {
     eyebrow.textContent = 'PHASE 2 · TRANSITION';
-    title.textContent = 'Now curve toward the conference table';
+    title.textContent = state.tableSkipped
+      ? 'Now curve into the room interior'
+      : 'Now curve toward the conference table';
     desc.textContent = "Don't stop walking. Smoothly turn into the room. Camera follows your body.";
   } else if (state.phase === PHASES.INTERIOR) {
     eyebrow.textContent = 'PHASE 3 · INTERIOR LOOP';
-    title.textContent = 'Walk clockwise around the table';
-    desc.textContent = 'Camera pointed at the table, ~1.5m perpendicular. Keep walking smoothly.';
+    title.textContent = state.tableSkipped
+      ? 'Walk a clockwise loop through the interior'
+      : 'Walk clockwise around the table';
+    desc.textContent = state.tableSkipped
+      ? 'Camera pointed inward. Aim for ~1.5m from major furniture. Keep walking smoothly.'
+      : 'Camera pointed at the table, ~1.5m perpendicular. Keep walking smoothly.';
   } else if (state.phase === PHASES.COMPLETE) {
     eyebrow.textContent = 'COMPLETE';
     title.textContent = 'Tour complete — tap stop';
@@ -1219,23 +1316,38 @@ function renderMinimap() {
   const ox = (W - rw) / 2;
   const oy = (H - rh) / 2;
 
-  // Table position (centered)
-  const tableScaleL = (d.TL / d.L) * rw;
-  const tableScaleW = (d.TW / d.W) * rh;
-  const tx = ox + (rw - tableScaleL) / 2;
-  const ty = oy + (rh - tableScaleW) / 2;
-
   // Perimeter walking path (inset by perimeter offset)
   const offsetX = (PERIMETER_OFFSET / d.L) * rw;
   const offsetY = (PERIMETER_OFFSET / d.W) * rh;
   const pX1 = ox + offsetX, pY1 = oy + offsetY;
   const pX2 = ox + rw - offsetX, pY2 = oy + rh - offsetY;
 
-  // Interior loop path (outset from table by table_loop_offset)
-  const loopOX = (TABLE_LOOP_OFFSET / d.L) * rw;
-  const loopOY = (TABLE_LOOP_OFFSET / d.W) * rh;
-  const lX1 = tx - loopOX, lY1 = ty - loopOY;
-  const lX2 = tx + tableScaleL + loopOX, lY2 = ty + tableScaleW + loopOY;
+  // Compute interior loop bounds.
+  // If table dims known: bounds derived from table + offset.
+  // If skipped: a generic inner loop ~55% of perimeter, centered in the room.
+  let lX1, lY1, lX2, lY2;
+  let tableRect = null;
+  if (state.tableSkipped) {
+    // Generic inner loop: midway between perimeter path and room center
+    const innerInsetX = (PERIMETER_OFFSET + 0.8) / d.L * rw;
+    const innerInsetY = (PERIMETER_OFFSET + 0.8) / d.W * rh;
+    lX1 = ox + innerInsetX + 12;
+    lY1 = oy + innerInsetY + 8;
+    lX2 = ox + rw - innerInsetX - 12;
+    lY2 = oy + rh - innerInsetY - 8;
+  } else {
+    const tableScaleL = (d.TL / d.L) * rw;
+    const tableScaleW = (d.TW / d.W) * rh;
+    const tx = ox + (rw - tableScaleL) / 2;
+    const ty = oy + (rh - tableScaleW) / 2;
+    tableRect = { x: tx, y: ty, w: tableScaleL, h: tableScaleW };
+    const loopOX = (TABLE_LOOP_OFFSET / d.L) * rw;
+    const loopOY = (TABLE_LOOP_OFFSET / d.W) * rh;
+    lX1 = tx - loopOX;
+    lY1 = ty - loopOY;
+    lX2 = tx + tableScaleL + loopOX;
+    lY2 = ty + tableScaleW + loopOY;
+  }
 
   // Compute phase coloring
   const perimDone = state.phase === PHASES.INTERIOR || state.phase === PHASES.COMPLETE || state.phase === PHASES.TRANSITION;
@@ -1244,17 +1356,20 @@ function renderMinimap() {
   const interiorColor = interiorDone ? '#4ade80' : (state.phase === PHASES.INTERIOR ? '#4dd4ff' : 'rgba(255,255,255,0.3)');
   const transitionColor = state.phase === PHASES.TRANSITION ? '#ffb347' : 'rgba(255,179,71,0.4)';
 
+  const tableSvg = tableRect
+    ? `<rect x="${tableRect.x}" y="${tableRect.y}" width="${tableRect.w}" height="${tableRect.h}" rx="1.5" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.3)" stroke-width="0.6"/>`
+    : `<text x="${ox + rw/2}" y="${oy + rh/2 + 3}" text-anchor="middle" font-family="JetBrains Mono" font-size="7" fill="rgba(255,255,255,0.3)" letter-spacing="0.5">INTERIOR</text>`;
+
   svg.innerHTML = `
     <!-- Room outline -->
     <rect x="${ox}" y="${oy}" width="${rw}" height="${rh}" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>
-    <!-- Table -->
-    <rect x="${tx}" y="${ty}" width="${tableScaleL}" height="${tableScaleW}" rx="1.5" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.3)" stroke-width="0.6"/>
+    ${tableSvg}
     <!-- Perimeter path -->
     <path d="M ${pX1} ${pY1} L ${pX2} ${pY1} L ${pX2} ${pY2} L ${lX2} ${pY2}" fill="none" stroke="${perimColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     <!-- Transition arc -->
     <path d="M ${lX2} ${pY2} Q ${lX2 - 3} ${pY2 - 6} ${lX2} ${lY2}" fill="none" stroke="${transitionColor}" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2 1.5"/>
     <!-- Interior loop -->
-    <path d="M ${lX2} ${lY2} L ${lX2} ${lY2} L ${lX2} ${lY1} L ${lX1} ${lY1} L ${lX1} ${lY2} L ${lX2} ${lY2}" fill="none" stroke="${interiorColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M ${lX2} ${lY2} L ${lX2} ${lY1} L ${lX1} ${lY1} L ${lX1} ${lY2} L ${lX2} ${lY2}" fill="none" stroke="${interiorColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     <!-- Start dot -->
     <circle cx="${pX1}" cy="${pY1}" r="3" fill="rgba(74,222,128,0.4)" stroke="#4ade80" stroke-width="1"/>
   `;
@@ -1301,15 +1416,22 @@ async function onBeginInit() {
 
 function onDimsNext() {
   readDimsFromInputs();
-  // Validate
-  if (state.dims.L < 2 || state.dims.W < 2 || state.dims.TL < 0.5 || state.dims.TW < 0.5) {
-    alert('Please enter valid dimensions');
+  // Validate room dims always
+  if (state.dims.L < 2 || state.dims.W < 2) {
+    alert('Please enter valid room dimensions (L and W ≥ 2m)');
     return;
   }
-  // Check table fits in room with corridors
-  const minCorridor = PERIMETER_OFFSET + TABLE_LOOP_OFFSET;
-  if (state.dims.TL + 2 * minCorridor > state.dims.L || state.dims.TW + 2 * minCorridor > state.dims.W) {
-    if (!confirm("Table dimensions may not leave enough corridor for the interior loop. Continue anyway?")) return;
+  // Validate table dims only if not skipped
+  if (!state.tableSkipped) {
+    if (state.dims.TL < 0.5 || state.dims.TW < 0.5) {
+      alert('Please enter valid table dimensions, or tap Skip if non-rectangular/unknown');
+      return;
+    }
+    // Check table fits in room with corridors
+    const minCorridor = PERIMETER_OFFSET + TABLE_LOOP_OFFSET;
+    if (state.dims.TL + 2 * minCorridor > state.dims.L || state.dims.TW + 2 * minCorridor > state.dims.W) {
+      if (!confirm("Table dimensions may not leave enough corridor for the interior loop. Continue anyway?")) return;
+    }
   }
   renderMinimap();
   setScreen('screen-prep');
@@ -1399,11 +1521,29 @@ function setUnit(u) {
 
   ['L','W','H','TL','TW'].forEach(k => {
     const el = $('dim-' + k);
-    const cur = parseFloat(el.value) || 0;
+    $('dim-' + k + '-unit').textContent = u;
+    // Skip empty fields — don't populate them with 0.0
+    const raw = el.value.trim();
+    if (!raw) return;
+    const cur = parseFloat(raw);
+    if (isNaN(cur)) return;
     const inMeters = fromFactor(cur);
     el.value = toFactor(inMeters).toFixed(1);
-    $('dim-' + k + '-unit').textContent = u;
   });
+  // Update placeholders to match new unit
+  if (u === 'ft') {
+    $('dim-L').placeholder  = 'e.g. 23.0';
+    $('dim-W').placeholder  = 'e.g. 14.8';
+    $('dim-H').placeholder  = 'e.g. 8.9';
+    $('dim-TL').placeholder = 'e.g. 9.8';
+    $('dim-TW').placeholder = 'e.g. 3.9';
+  } else {
+    $('dim-L').placeholder  = 'e.g. 7.0';
+    $('dim-W').placeholder  = 'e.g. 4.5';
+    $('dim-H').placeholder  = 'e.g. 2.7';
+    $('dim-TL').placeholder = 'e.g. 3.0';
+    $('dim-TW').placeholder = 'e.g. 1.2';
+  }
   state.unit = u;
   $('unit-m').classList.toggle('on', u === 'm');
   $('unit-ft').classList.toggle('on', u === 'ft');
@@ -1421,6 +1561,17 @@ $('download-video-btn').addEventListener('click', downloadVideo);
 
 $('unit-m').addEventListener('click', () => setUnit('m'));
 $('unit-ft').addEventListener('click', () => setUnit('ft'));
+
+$('enable-table').addEventListener('change', (e) => {
+  const enabled = e.target.checked;
+  state.tableSkipped = !enabled;
+  $('dim-TL').disabled = !enabled;
+  $('dim-TW').disabled = !enabled;
+  if (enabled) {
+    // Focus first table input as a usability nudge
+    setTimeout(() => $('dim-TL').focus(), 50);
+  }
+});
 
 $('dev-toggle').addEventListener('click', () => {
   state.devShown = !state.devShown;
